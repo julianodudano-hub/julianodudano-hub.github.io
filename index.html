@@ -3,322 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthwave Pinball PWA Pro</title>
-    <meta name="theme-color" content="#ff007f">
+    <title>Ściśle Tajne</title>
     <style>
-        :root { --neon-pink: #ff007f; --neon-blue: #00f0ff; --bg: #050510; }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: var(--bg); color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
-        #game-container { position: relative; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
-        .hud { width: 100%; display: flex; justify-content: space-between; padding: 10px; font-size: 1.2rem; color: var(--neon-blue); text-shadow: 0 0 5px var(--neon-blue); }
-        canvas { background: #0a0a20; border: 4px solid var(--neon-pink); border-radius: 20px; box-shadow: 0 0 20px rgba(255, 0, 127, 0.5); touch-action: none; width: 100%; }
-        .controls-info { margin-top: 10px; font-size: 0.8rem; color: #6d6d9c; text-align: center; }
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #0b0c10;
+            color: #66fcf1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        .container {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px #66fcf1;
+        }
+        .btn {
+            background: transparent;
+            color: #66fcf1;
+            border: 2px solid #66fcf1;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.2);
+        }
+        .btn:hover {
+            background-color: #66fcf1;
+            color: #0b0c10;
+            box-shadow: 0 0 25px #66fcf1;
+            transform: scale(1.05);
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .hidden-message {
+            display: none;
+            font-size: 3rem;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); text-shadow: 0 0 10px #45f3ff; }
+            50% { transform: scale(1.1); text-shadow: 0 0 30px #ff007f, 0 0 50px #ff007f; color: #ff007f; }
+            100% { transform: scale(1); text-shadow: 0 0 10px #45f3ff; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <div class="hud">
-            <div>SCORE: <span id="score">0000</span></div>
-            <div>HI: <span id="highscore">0000</span></div>
+    <canvas id="particleCanvas"></canvas>
+
+    <div class="container">
+        <div id="setup">
+            <h1 id="title">System gotowy do aktywacji</h1>
+            <button class="btn" onclick="revealSurprise()">URUCHOM</button>
         </div>
-        
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
-        
-        <div class="controls-info">
-            PC: Strzałka w Lewo / Prawo | Tel: Kliknij lewą/prawą stronę ekranu
+        <div id="surprise" class="hidden-message">
+            JESTEŚ NIESAMOWITY! 🚀
         </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
+        const canvas = document.getElementById('particleCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // --- SYSTEM AUDIO (Web Audio API) ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSynthTone(freq, type, duration) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+        let particles = [];
+        let activeMode = false;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
-        // --- STAN GRY ---
-        let score = 0;
-        let highscore = localStorage.getItem('pinball_hi') || 0;
-        document.getElementById('highscore').innerText = highscore.toString().padStart(4, '0');
-
-        // --- FIZYKA ---
-        let ball = { x: 200, y: 150, vx: 2, vy: 0, radius: 10, gravity: 0.3 };
-        
-        // Precyzyjnie ustawione punkty bazowe flipperów (lewy dolny trójkąt i prawy dolny trójkąt)
-        let flippers = {
-            left: { 
-                x: 100, y: 530, 
-                length: 80, 
-                angle: 0.4,       // Kąt w spoczynku (lekko w dół)
-                minAngle: 0.4, 
-                maxAngle: -0.3,   // Kąt po wystrzale (w górę)
-                angularSpeed: 0,
-                isPressed: false 
-            },
-            right: { 
-                x: 300, y: 530, 
-                length: 80, 
-                angle: Math.PI - 0.4, 
-                minAngle: Math.PI - 0.4, 
-                maxAngle: Math.PI + 0.3, 
-                angularSpeed: 0,
-                isPressed: false 
+        class Particle {
+            constructor(x, y, color, speedX, speedY) {
+                this.x = x || Math.random() * canvas.width;
+                this.y = y || Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = speedX || (Math.random() - 0.5) * 1.5;
+                this.speedY = speedY || (Math.random() - 0.5) * 1.5;
+                this.color = color || '#45f3ff';
+                this.alpha = 1;
             }
-        };
-
-        let bumpers = [
-            { x: 120, y: 160, r: 25, color: '#00f0ff' },
-            { x: 280, y: 160, r: 25, color: '#00f0ff' },
-            { x: 200, y: 260, r: 30, color: '#ff007f' }
-        ];
-
-        // --- OBSŁUGA STEROWANIA ---
-        const pressLeft = () => { flippers.left.isPressed = true; };
-        const releaseLeft = () => { flippers.left.isPressed = false; };
-        const pressRight = () => { flippers.right.isPressed = true; };
-        const releaseRight = () => { flippers.right.isPressed = false; };
-
-        window.addEventListener('keydown', e => {
-            if (e.key === 'ArrowLeft') pressLeft();
-            if (e.key === 'ArrowRight') pressRight();
-        });
-        window.addEventListener('keyup', e => {
-            if (e.key === 'ArrowLeft') releaseLeft();
-            if (e.key === 'ArrowRight') releaseRight();
-        });
-
-        window.addEventListener('touchstart', e => {
-            const touchX = e.touches[0].clientX;
-            if (touchX < window.innerWidth / 2) pressLeft(); else pressRight();
-        });
-        window.addEventListener('touchend', e => {
-            releaseLeft(); releaseRight();
-        });
-
-        // --- MATEMATYKA FIZYKI: Kolizja punktu z linią ---
-        function checkFlipperCollision(f) {
-            let endX = f.x + Math.cos(f.angle) * f.length;
-            let endY = f.y + Math.sin(f.angle) * f.length;
-
-            // Wektory segmentu i piłki
-            let abx = endX - f.x;
-            let aby = endY - f.y;
-            let acx = ball.x - f.x;
-            let acy = ball.y - f.y;
-
-            // Rzutowanie punktu na odcinek (clamping)
-            let ab_len_sq = abx*abx + aby*aby;
-            let t = (acx*abx + acy*aby) / ab_len_sq;
-            t = Math.max(0, Math.min(1, t));
-
-            // Najbliższy punkt na flipperze do środka piłki
-            let closestX = f.x + t * abx;
-            let closestY = f.y + t * aby;
-
-            let distX = ball.x - closestX;
-            let distY = ball.y - closestY;
-            let distance = Math.sqrt(distX*distX + distY*distY);
-
-            // Jeśli doszło do kontaktu z linią flippera
-            if (distance < ball.radius + 4) {
-                // Obliczanie normalnej wektora odbicia
-                let nx = distX / distance;
-                let ny = distY / distance;
-
-                // Wypchnięcie piłki z wnętrza flippera (żeby nie utknęła)
-                ball.x = closestX + nx * (ball.radius + 5);
-                ball.y = closestY + ny * (ball.radius + 5);
-
-                // Prędkość liniowa punktu uderzenia na flipperze wynikająca z jego rotacji
-                let linearVel = f.angularSpeed * (t * f.length);
-                let fvx = -ny * linearVel;
-                let fvy = nx * linearVel;
-
-                // Względna prędkość piłki do ruchomego flippera
-                let rvx = ball.vx - fvx;
-                let rvy = ball.vy - fvy;
-
-                // Odbicie wektorowe (iloczyn skalarny)
-                let dot = rvx * nx + rvy * ny;
-
-                if (dot < 0) { // Odbijaj tylko wtedy, gdy leci w stronę flippera
-                    ball.vx = (rvx - 2 * dot * nx) + fvx;
-                    ball.vy = (rvy - 2 * dot * ny) * 0.8 + fvy; // Tłumienie pionowe dla balansu
-                    
-                    if (Math.abs(f.angularSpeed) > 0.01) {
-                        playSynthTone(450, 'sawtooth', 0.1); // Dynamiczny dźwięk mocnego odbicia
-                    } else {
-                        playSynthTone(250, 'triangle', 0.08); // Zwykłe stoczenie się
-                    }
-                }
-            }
-        }
-
-        // --- AKTUALIZACJA LOGIKI ---
-        function update() {
-            ball.vy += ball.gravity;
-            ball.x += ball.vx;
-            ball.y += ball.vy;
-
-            // Odbicia od krawędzi canvasu
-            if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.vx *= -0.7; playSynthTone(150, 'triangle', 0.05); }
-            if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.vx *= -0.7; playSynthTone(150, 'triangle', 0.05); }
-            if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.vy *= -0.7; }
-
-            // Aktualizacja kątów i prędkości kątowej flipperów
-            [flippers.left, flippers.right].forEach((f, idx) => {
-                let target = f.isPressed ? f.maxAngle : f.minAngle;
-                let oldAngle = f.angle;
-                
-                // Płynny, ale dynamiczny powrót i natychmiastowy strzał
-                if (f.isPressed) {
-                    f.angle += (target - f.angle) * 0.6; 
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (activeMode) {
+                    this.alpha -= 0.01;
                 } else {
-                    f.angle += (target - f.angle) * 0.2;
+                    if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
+                    if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
                 }
-                
-                f.angularSpeed = f.angle - oldAngle; // Obliczanie prędkości obrotu dla fizyki impetu
-            });
-
-            // Wykrywanie zaawansowanych kolizji flipperów
-            checkFlipperCollision(flippers.left);
-            checkFlipperCollision(flippers.right);
-
-            // Kolizje z okrągłymi bumperami
-            bumpers.forEach(b => {
-                let dx = ball.x - b.x;
-                let dy = ball.y - b.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < ball.radius + b.r) {
-                    let nx = dx / dist;
-                    let ny = dy / dist;
-                    ball.x = b.x + nx * (ball.radius + b.r);
-                    
-                    let dot = ball.vx * nx + ball.vy * ny;
-                    ball.vx = (ball.vx - 2 * dot * nx) * 1.25; 
-                    ball.vy = (ball.vy - 2 * dot * ny) * 1.25;
-                    
-                    score += 10;
-                    document.getElementById('score').innerText = score.toString().padStart(4, '0');
-                    playSynthTone(600, 'sine', 0.12);
-                }
-            });
-
-            // Porażka - Piłka spada na dół
-            if (ball.y > canvas.height) {
-                playSynthTone(90, 'sawtooth', 0.4);
-                if (score > highscore) {
-                    highscore = score;
-                    localStorage.setItem('pinball_hi', highscore);
-                    document.getElementById('highscore').innerText = highscore.toString().padStart(4, '0');
-                }
-                score = 0;
-                document.getElementById('score').innerText = "0000";
-                ball = { x: Math.random() * 160 + 120, y: 80, vx: (Math.random() - 0.5) * 4, vy: 0, radius: 10, gravity: 0.3 };
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
         }
 
-        // --- RYSOWANIE GRAFIKI ---
-        function draw() {
+        function initParticles() {
+            for (let i = 0; i < 80; i++) {
+                particles.push(new Particle());
+            }
+        }
+        initParticles();
+
+        function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Retro siatka w tle
-            ctx.strokeStyle = '#121230';
-            ctx.lineWidth = 1;
-            for(let i=0; i<canvas.height; i+=30) {
-                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            
+            if (activeMode && Math.random() < 0.4) {
+                const colors = ['#ff007f', '#45f3ff', '#00ffcc', '#ffff00'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                for(let i=0; i<5; i++) {
+                    particles.push(new Particle(
+                        canvas.width / 2, 
+                        canvas.height / 2, 
+                        randomColor, 
+                        (Math.random() - 0.5) * 8, 
+                        (Math.random() - 0.5) * 8
+                    ));
+                }
             }
 
-            // Bumpery
-            bumpers.forEach(b => {
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-                ctx.fillStyle = '#050515';
-                ctx.fill();
-                ctx.strokeStyle = b.color;
-                ctx.lineWidth = 4;
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = b.color;
-                ctx.stroke();
-            });
-            ctx.shadowBlur = 0;
-
-            // Flippery
-            [flippers.left, flippers.right].forEach(f => {
-                ctx.beginPath();
-                ctx.moveTo(f.x, f.y);
-                ctx.lineTo(f.x + Math.cos(f.angle) * f.length, f.y + Math.sin(f.angle) * f.length);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 8;
-                ctx.lineCap = 'round';
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = varName = '#fff';
-                ctx.stroke();
-                ctx.shadowBlur = 0;
-
-                // Narysowanie punktu obrotu (fizycznej osi) dla ładniejszego wyglądu
-                ctx.beginPath();
-                ctx.arc(f.x, f.y, 6, 0, Math.PI*2);
-                ctx.fillStyle = varName = '#ff007f';
-                ctx.fill();
+            particles.forEach((p, index) => {
+                p.update();
+                p.draw();
+                if (p.alpha <= 0) particles.splice(index, 1);
             });
 
-            // Piłka
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#00f0ff';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#00f0ff';
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            requestAnimationFrame(animate);
         }
+        animate();
 
-        function loop() {
-            update();
-            draw();
-            requestAnimationFrame(loop);
+        function revealSurprise() {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('surprise').style.display = 'block';
+            activeMode = true;
+            document.body.style.backgroundColor = '#050510';
         }
-
-        // --- AUTOMATYCZNE MONOLITYCZNE PWA ---
-        const manifestObj = {
-            "short_name": "SynthPinball",
-            "name": "Synthwave Cyber Pinball PWA Pro",
-            "start_url": window.location.href,
-            "background_color": "#050510",
-            "display": "standalone",
-            "theme_color": "#ff007f",
-            "icons": [{"src": "https://github.com/fluidicon.png", "type": "image/png", "sizes": "512x512"}]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifestObj)], {type: 'application/json'});
-        const manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest'; manifestLink.href = URL.createObjectURL(manifestBlob);
-        document.head.appendChild(manifestLink);
-
-        const swCode = `
-            const CACHE_NAME = 'pinball-v2';
-            self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.add(location.href))));
-            self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-        `;
-        if ('serviceWorker' in navigator) {
-            const swBlob = new Blob([swCode], {type: 'text/javascript'});
-            window.navigator.serviceWorker.register(URL.createObjectURL(swBlob), { scope: './' });
-        }
-
-        loop();
     </script>
 </body>
 </html>
