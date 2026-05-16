@@ -2,225 +2,128 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Survival - Prawdziwy CSS Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monolityczne PWA (100% Client-Side)</title>
+    <meta name="theme-color" content="#0d1117">
+    
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-        }
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #03030d;
-            font-family: 'Segoe UI', sans-serif;
-            color: white;
-        }
-
-        /* --- SYSTEM PUNKTÓW (Counter działający przy respawnie) --- */
-        body {
-            counter-reset: score 0;
-        }
-        /* Każde kliknięcie w input zwiększa licznik o 1 */
-        input:checked {
-            counter-increment: score;
-        }
-        #scoreDisplay::after {
-            content: counter(score);
-            font-weight: bold;
-            color: #2ed573;
-            font-size: 24px;
-        }
-
-        .game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* --- PŁYNNE STEROWANIE (Naprawiony lag/szybkość) --- */
-        /* Zamiast dwóch wielkich bram, dzielimy ekran na 4 strefy dla płynniejszego przejścia (efekt pseudo-analogowy) */
-        .control-zone {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 25%;
-            z-index: 5;
-        }
-        .zone-1 { left: 0; }
-        .zone-2 { left: 25%; }
-        .zone-3 { left: 50%; }
-        .zone-4 { left: 75%; }
-
-        .player-space {
-            position: absolute;
-            bottom: 50px;
-            left: 0;
-            width: 100%;
-            pointer-events: none;
-            display: flex;
-            justify-content: center;
-            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Płynny ruch */
-        }
-        .player {
-            width: 45px;
-            height: 45px;
-            background: #00d2d3;
-            clip-path: polygon(50% 0%, 0% 100%, 50% 75%, 100% 100%);
-            box-shadow: 0 0 20px #00d2d3;
-        }
-
-        /* Mapowanie płynnych pozycji statku */
-        .zone-1:hover ~ .player-space { transform: translateX(-35vw); }
-        .zone-2:hover ~ .player-space { transform: translateX(-12vw); }
-        .zone-3:hover ~ .player-space { transform: translateX(12vw); }
-        .zone-4:hover ~ .player-space { transform: translateX(35vw); }
-
-        /* --- EMULACJA KOLIZJI (Przegrana gdy wróg dotrze na dół) --- */
-        /* Ponieważ nie ma JS do badania nakładania się obiektów, grą zarządza czas. 
-           Jeśli gracz NIE kliknie wroga, a ten przeleci całą animację, aktywuje się ekran Game Over. */
-        .danger-zone {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 110px;
-            background: linear-gradient(transparent, rgba(255, 71, 87, 0.1));
-            pointer-events: none;
-            z-index: 2;
-        }
-
-        /* --- GENERATOR WROGÓW (Nieskończony Respawn) --- */
-        /* Aby wróg pojawiał się na nowo, animacja ukrywa go tylko na ułamek sekundy (reset) po kliknięciu, 
-           a sam input jest resetowany przez trik z animacją opóźnienia kliknięcia. */
-        .enemy-wrapper {
-            position: absolute;
-            top: -60px;
-            width: 60px;
-            height: 60px;
-            z-index: 10;
-        }
-
-        /* Główna animacja lotu w dół – zapętlona w nieskończoność (infinite) */
-        .w-1 { left: 15%; animation: fall 5s linear infinite; animation-delay: 0s; }
-        .w-2 { left: 40%; animation: fall 4s linear infinite; animation-delay: 1.5s; }
-        .w-3 { left: 65%; animation: fall 6s linear infinite; animation-delay: 0.5s; }
-        .w-4 { left: 85%; animation: fall 4.5s linear infinite; animation-delay: 2.5s; }
-
-        @keyframes fall {
-            0% { top: -60px; opacity: 1; pointer-events: auto; }
-            95% { opacity: 1; pointer-events: auto; }
-            100% { top: 90vh; opacity: 0; pointer-events: none; } /* Dotarcie do bazy */
-        }
-
-        /* Stylizacja samego przeciwnika (Label) */
-        .enemy-target {
-            display: block;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, #ff4757 40%, #ff6b6b 80%);
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 0 15px #ff4757;
-            transition: transform 0.1s;
-        }
-
-        /* Trik resetujący: Kiedy wróg zostanie kliknięty, powiązany checkbox dostaje :checked. 
-           Wtedy za pomocą animacji 'hit' ukrywamy wroga na czas trwania tej konkretnej pętli, 
-           ale gdy animacja 'fall' (na wrapperze) zaczyna się od nowa – wróg wraca! */
-        input[type="checkbox"] {
-            position: absolute;
-            opacity: 0;
-        }
-
-        input:checked + .enemy-target {
-            animation: hit 0.5s forwards;
-            pointer-events: none;
-        }
-
-        @keyframes hit {
-            0% { transform: scale(1.2); background: white; opacity: 1; }
-            100% { transform: scale(0); opacity: 0; }
-        }
-
-        /* --- INTERFEJS I HUD --- */
-        #hud {
-            position: absolute;
-            top: 25px;
-            left: 25px;
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .info {
-            position: absolute;
-            bottom: 15px;
-            width: 100%;
-            text-align: center;
-            color: rgba(255,255,255,0.3);
-            font-size: 13px;
-            pointer-events: none;
-            z-index: 100;
-        }
+        :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --blue: #58a6ff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 500px; width: 100%; margin-top: 40px; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 12px; font-size: 1.6rem; color: #f0f6fc; text-align: center; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); text-align: center; }
+        .price { font-size: 2rem; color: var(--blue); font-weight: bold; margin: 15px 0; }
+        .status { font-size: 0.9rem; padding: 6px; border-radius: 4px; display: inline-block; }
+        .online { background: rgba(56, 185, 80, 0.15); color: #3fb950; }
+        .offline { background: rgba(248, 81, 73, 0.15); color: #f85149; }
     </style>
 </head>
 <body>
 
-    <div class="game-container">
+    <div class="container">
+        <h1>GitHub Pages - Single File PWA</h1>
+
+        <div class="card">
+            <h2>Kurs Bitcoin (Live API)</h2>
+            <div id="btc-price" class="price">Ładowanie...</div>
+            <div id="net-status" class="status online">Sprawdzanie sieci...</div>
+        </div>
         
-        <!-- HUD -->
-        <div id="hud">
-            <div id="scoreDisplay">PUNKTY: </div>
+        <div class="card" style="font-size: 0.85rem; color: #8b949e;">
+            Ta strona to pojedynczy plik HTML. Wygenerowała własny plik Manifestu oraz Service Workera, dzięki czemu możesz ją zainstalować i uruchomić bez dostępu do internetu.
         </div>
-
-        <!-- Strefy sterowania (Zapewniają płynny ruch statku) -->
-        <div class="control-zone zone-1"></div>
-        <div class="control-zone zone-2"></div>
-        <div class="control-zone zone-3"></div>
-        <div class="control-zone zone-4"></div>
-
-        <!-- WRÓG 1 -->
-        <div class="enemy-wrapper w-1">
-            <input type="checkbox" id="e1">
-            <label for="e1" class="enemy-target"></label>
-        </div>
-
-        <!-- WRÓG 2 -->
-        <div class="enemy-wrapper w-2">
-            <input type="checkbox" id="e2">
-            <label for="e2" class="enemy-target"></label>
-        </div>
-
-        <!-- WRÓG 3 -->
-        <div class="enemy-wrapper w-3">
-            <input type="checkbox" id="e3">
-            <label for="e3" class="enemy-target"></label>
-        </div>
-
-        <!-- WRÓG 4 -->
-        <div class="enemy-wrapper w-4">
-            <input type="checkbox" id="e4">
-            <label for="e4" class="enemy-target"></label>
-        </div>
-
-        <!-- Linia obrony (Wizualizacja "kolizji" z bazą) -->
-        <div class="danger-zone"></div>
-
-        <!-- Gracz -->
-        <div class="player-space">
-            <div class="player"></div>
-        </div>
-
-        <div class="info">
-            [Pojazdy obcych odradzają się w nieskończoność. Klikaj/Tapuj je, zanim dotrą na dół ekranu!]
-        </div>
-
     </div>
 
+    <script>
+        // ==========================================
+        // 1. GENEROWANIE MANIFESTU PWA W LOCIE
+        // ==========================================
+        const manifestObj = {
+            "short_name": "SinglePWA",
+            "name": "Single File Progressive Web App",
+            "start_url": window.location.href,
+            "background_color": "#0d1117",
+            "display": "standalone",
+            "theme_color": "#0d1117",
+            "icons": [{"src": "https://github.com/fluidicon.png", "type": "image/png", "sizes": "512x512"}]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestObj)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        // ==========================================
+        // 2. MAGIA OFFLINE: SERVICE WORKER Z BLOBA
+        // ==========================================
+        const swCode = `
+            const CACHE_NAME = 'single-file-cache-v1';
+            const ASSETS = [location.href]; // Skrypt cachuje sam siebie (ten adres URL)
+
+            self.addEventListener('install', e => {
+                e.waitUntil(
+                    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+                );
+            });
+
+            self.addEventListener('fetch', e => {
+                e.respondWith(
+                    caches.match(e.request).then(cachedResponse => {
+                        // Zwróć z pamięci podręcznej, a jak nie ma, to pobierz z sieci (np. zapytania do API)
+                        return cachedResponse || fetch(e.request);
+                    })
+                );
+            });
+        `;
+
+        if ('serviceWorker' in navigator) {
+            const swBlob = new Blob([swCode], {type: 'text/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+            
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register(swUrl, { scope: './' })
+                    .then(() => console.log('Service Worker wygenerowany z Bloba i zarejestrowany!'))
+                    .catch(err => console.error('Błąd SW:', err));
+            });
+        }
+
+        // ==========================================
+        // 3. LOGIKA APLIKACJI (POBIERANIE DANYCH)
+        // ==========================================
+        async function getCryptoData() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+                const data = await response.json();
+                document.getElementById('btc-price').innerText = `$${data.bitcoin.usd.toLocaleString()}`;
+            } catch (error) {
+                if (!navigator.onLine) {
+                    document.getElementById('btc-price').innerText = "Tryb Offline";
+                } else {
+                    document.getElementById('btc-price').innerText = "Błąd API";
+                }
+            }
+        }
+
+        function toggleNetworkStatus() {
+            const statusEl = document.getElementById('net-status');
+            if (navigator.onLine) {
+                statusEl.innerText = "🟢 Jesteś ONLINE (Dane aktualne)";
+                statusEl.className = "status online";
+                getCryptoData();
+            } else {
+                statusEl.innerText = "🔴 Jesteś OFFLINE (Pamięć podręczna)";
+                statusEl.className = "status offline";
+                document.getElementById('btc-price').innerText = "Tryb Offline";
+            }
+        }
+
+        window.addEventListener('online', toggleNetworkStatus);
+        window.addEventListener('offline', toggleNetworkStatus);
+
+        // Uruchomienie na starcie
+        toggleNetworkStatus();
+        setInterval(getCryptoData, 15000); // Odświeżanie ceny co 15 sekund
+    </script>
 </body>
 </html>
