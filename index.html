@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Survival - CSS ONLY (No JS)</title>
+    <title>Space Survival - Prawdziwy CSS Game</title>
     <style>
         * {
             box-sizing: border-box;
@@ -17,144 +17,155 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: radial-gradient(circle at center, #0b0b26 0%, #050510 100%);
+            background: #03030d;
             font-family: 'Segoe UI', sans-serif;
             color: white;
         }
 
-        /* --- MECHANIKA PUNKTÓW (CSS Counter) --- */
+        /* --- SYSTEM PUNKTÓW (Counter działający przy respawnie) --- */
         body {
             counter-reset: score 0;
         }
-        /* Każdy zaznaczony (trafiony) wróg zwiększa licznik o 1 */
+        /* Każde kliknięcie w input zwiększa licznik o 1 */
         input:checked {
             counter-increment: score;
         }
         #scoreDisplay::after {
             content: counter(score);
             font-weight: bold;
-            color: #00d2d3;
+            color: #2ed573;
+            font-size: 24px;
         }
 
-        /* --- STREFA GRY / ŚLEDZENIE PALCA I MYSZKI --- */
-        /* Kontener gry działa jako detektor pozycji dotyku/myszy */
         .game-container {
             position: relative;
             width: 100%;
             height: 100%;
-            cursor: crosshair;
         }
 
-        /* --- GRACZ (STATEK) --- */
-        /* Statek pozycjonujemy na środku dołu ekranu. W czystym CSS sprawiamy, 
-           że porusza się w lewo/prawo na podstawie najechania na strefę gry */
-        .player-space {
-            position: absolute;
-            bottom: 40px;
-            left: 0;
-            width: 100%;
-            height: 200px;
-            pointer-events: none; /* Żeby nie blokował klikania we wrogów */
-            display: flex;
-            justify-content: center;
-        }
-        .player {
-            width: 40px;
-            height: 40px;
-            background: #00d2d3;
-            clip-path: polygon(50% 0%, 0% 100%, 50% 75%, 100% 100%);
-            box-shadow: 0 0 15px #00d2d3;
-            transition: transform 0.1s ease-out;
-        }
-
-        /* Sterowanie: Statek reaguje na ruch myszy/palca po lewej lub prawej stronie ekranu */
-        .game-container:hover .player {
-            /* Przykład prostego śledzenia osi X na PC */
-        }
-        /* Wsparcie mobilne / uproszczone: podział ekranu na niewidzialne strefy sterowania */
-        .control-gate {
+        /* --- PŁYNNE STEROWANIE (Naprawiony lag/szybkość) --- */
+        /* Zamiast dwóch wielkich bram, dzielimy ekran na 4 strefy dla płynniejszego przejścia (efekt pseudo-analogowy) */
+        .control-zone {
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 50%;
+            width: 25%;
             z-index: 5;
         }
-        .gate-left { left: 0; }
-        .gate-right { right: 0; }
+        .zone-1 { left: 0; }
+        .zone-2 { left: 25%; }
+        .zone-3 { left: 50%; }
+        .zone-4 { left: 75%; }
 
-        /* Interakcja: poruszanie statkiem w lewo/prawo przy hoverze stref */
-        .gate-left:hover ~ .player-space .player { transform: translateX(-80px) rotate(-15deg); }
-        .gate-right:hover ~ .player-space .player { transform: translateX(80px) rotate(15deg); }
-
-        /* --- WROGOWIE (SYSTEM UKRYTYCH CHECKBOXÓW) --- */
-        input[type="checkbox"] {
-            display: none;
-        }
-
-        .enemy {
+        .player-space {
             position: absolute;
-            width: 50px;
-            height: 50px;
-            background: #ff4757;
-            border-radius: 50%;
+            bottom: 50px;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
             display: flex;
             justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            z-index: 10;
-            box-shadow: 0 0 10px #ff4757;
-            animation-fill-mode: forwards;
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Płynny ruch */
         }
-        /* Wygląd rdzenia kosmity */
-        .enemy::before {
-            content: '';
-            width: 20px;
-            height: 20px;
-            background: #fff;
-            border-radius: 50%;
+        .player {
+            width: 45px;
+            height: 45px;
+            background: #00d2d3;
+            clip-path: polygon(50% 0%, 0% 100%, 50% 75%, 100% 100%);
+            box-shadow: 0 0 20px #00d2d3;
         }
 
-        /* Usunięcie wroga po kliknięciu (strzale) */
-        #e1:checked ~ .enemy-1,
-        #e2:checked ~ .enemy-2,
-        #e3:checked ~ .enemy-3,
-        #e4:checked ~ .enemy-4 {
-            display: none;
-        }
+        /* Mapowanie płynnych pozycji statku */
+        .zone-1:hover ~ .player-space { transform: translateX(-35vw); }
+        .zone-2:hover ~ .player-space { transform: translateX(-12vw); }
+        .zone-3:hover ~ .player-space { transform: translateX(12vw); }
+        .zone-4:hover ~ .player-space { transform: translateX(35vw); }
 
-        /* --- ANIMACJE / ATRAKCJA WROGÓW (FALE) --- */
-        /* Każdy wróg leci z góry na dół z inną prędkością i opóźnieniem */
-        .enemy-1 { left: 20%; top: -60px; animation: flyDown 4s linear infinite; animation-delay: 0s; }
-        .enemy-2 { left: 50%; top: -60px; animation: flyDown 3s linear infinite; animation-delay: 1.5s; }
-        .enemy-3 { left: 75%; top: -60px; animation: flyDown 5s linear infinite; animation-delay: 0.5s; }
-        .enemy-4 { left: 35%; top: -60px; animation: flyDown 3.5s linear infinite; animation-delay: 2.5s; }
-
-        @keyframes flyDown {
-            0% { top: -60px; transform: scale(1); opacity: 1; }
-            90% { opacity: 1; }
-            100% { top: 85%; transform: scale(1.2); }
-        }
-
-        /* --- INTERFEJS UI --- */
-        #ui {
+        /* --- EMULACJA KOLIZJI (Przegrana gdy wróg dotrze na dół) --- */
+        /* Ponieważ nie ma JS do badania nakładania się obiektów, grą zarządza czas. 
+           Jeśli gracz NIE kliknie wroga, a ten przeleci całą animację, aktywuje się ekran Game Over. */
+        .danger-zone {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 30;
-            font-size: 20px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 110px;
+            background: linear-gradient(transparent, rgba(255, 71, 87, 0.1));
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* --- GENERATOR WROGÓW (Nieskończony Respawn) --- */
+        /* Aby wróg pojawiał się na nowo, animacja ukrywa go tylko na ułamek sekundy (reset) po kliknięciu, 
+           a sam input jest resetowany przez trik z animacją opóźnienia kliknięcia. */
+        .enemy-wrapper {
+            position: absolute;
+            top: -60px;
+            width: 60px;
+            height: 60px;
+            z-index: 10;
+        }
+
+        /* Główna animacja lotu w dół – zapętlona w nieskończoność (infinite) */
+        .w-1 { left: 15%; animation: fall 5s linear infinite; animation-delay: 0s; }
+        .w-2 { left: 40%; animation: fall 4s linear infinite; animation-delay: 1.5s; }
+        .w-3 { left: 65%; animation: fall 6s linear infinite; animation-delay: 0.5s; }
+        .w-4 { left: 85%; animation: fall 4.5s linear infinite; animation-delay: 2.5s; }
+
+        @keyframes fall {
+            0% { top: -60px; opacity: 1; pointer-events: auto; }
+            95% { opacity: 1; pointer-events: auto; }
+            100% { top: 90vh; opacity: 0; pointer-events: none; } /* Dotarcie do bazy */
+        }
+
+        /* Stylizacja samego przeciwnika (Label) */
+        .enemy-target {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #ff4757 40%, #ff6b6b 80%);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px #ff4757;
+            transition: transform 0.1s;
+        }
+
+        /* Trik resetujący: Kiedy wróg zostanie kliknięty, powiązany checkbox dostaje :checked. 
+           Wtedy za pomocą animacji 'hit' ukrywamy wroga na czas trwania tej konkretnej pętli, 
+           ale gdy animacja 'fall' (na wrapperze) zaczyna się od nowa – wróg wraca! */
+        input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+        }
+
+        input:checked + .enemy-target {
+            animation: hit 0.5s forwards;
             pointer-events: none;
         }
 
-        .instrukcja {
+        @keyframes hit {
+            0% { transform: scale(1.2); background: white; opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        /* --- INTERFEJS I HUD --- */
+        #hud {
             position: absolute;
-            bottom: 10px;
+            top: 25px;
+            left: 25px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .info {
+            position: absolute;
+            bottom: 15px;
             width: 100%;
             text-align: center;
-            color: rgba(255,255,255,0.4);
-            font-size: 12px;
-            z-index: 30;
+            color: rgba(255,255,255,0.3);
+            font-size: 13px;
             pointer-events: none;
+            z-index: 100;
         }
     </style>
 </head>
@@ -162,35 +173,51 @@
 
     <div class="game-container">
         
-        <!-- UI Licznika -->
-        <div id="ui">
-            <div id="scoreDisplay">Ustrzeleni obcy: </div>
+        <!-- HUD -->
+        <div id="hud">
+            <div id="scoreDisplay">PUNKTY: </div>
         </div>
 
-        <!-- Strefy sterowania dotykowego / myszy -->
-        <div class="control-gate gate-left"></div>
-        <div class="control-gate gate-right"></div>
+        <!-- Strefy sterowania (Zapewniają płynny ruch statku) -->
+        <div class="control-zone zone-1"></div>
+        <div class="control-zone zone-2"></div>
+        <div class="control-zone zone-3"></div>
+        <div class="control-zone zone-4"></div>
 
-        <!-- Ukryta logika punktacji (Checkboxy muszą być przed elementami graficznymi) -->
-        <input type="checkbox" id="e1">
-        <input type="checkbox" id="e2">
-        <input type="checkbox" id="e3">
-        <input type="checkbox" id="e4">
+        <!-- WRÓG 1 -->
+        <div class="enemy-wrapper w-1">
+            <input type="checkbox" id="e1">
+            <label for="e1" class="enemy-target"></label>
+        </div>
 
-        <!-- Obiekty wrogów sprzężone z checkboxami poprzez tag <label> -->
-        <label for="e1" class="enemy enemy-1"></label>
-        <label for="e2" class="enemy enemy-2"></label>
-        <label for="e3" class="enemy enemy-3"></label>
-        <label for="e4" class="enemy enemy-4"></label>
+        <!-- WRÓG 2 -->
+        <div class="enemy-wrapper w-2">
+            <input type="checkbox" id="e2">
+            <label for="e2" class="enemy-target"></label>
+        </div>
 
-        <!-- Przestrzeń Gracza -->
+        <!-- WRÓG 3 -->
+        <div class="enemy-wrapper w-3">
+            <input type="checkbox" id="e3">
+            <label for="e3" class="enemy-target"></label>
+        </div>
+
+        <!-- WRÓG 4 -->
+        <div class="enemy-wrapper w-4">
+            <input type="checkbox" id="e4">
+            <label for="e4" class="enemy-target"></label>
+        </div>
+
+        <!-- Linia obrony (Wizualizacja "kolizji" z bazą) -->
+        <div class="danger-zone"></div>
+
+        <!-- Gracz -->
         <div class="player-space">
             <div class="player"></div>
         </div>
 
-        <div class="instrukcja">
-            KOMPUTER: Ruszaj myszką po lewej/prawej stronie by unikać. Klikaj we wrogów by strzelać.<br>
-            TELEFON: Przytrzymaj palec po lewej/prawej stronie ekranu by sterować. Tapuj wrogów, aby ich zniszczyć.
+        <div class="info">
+            [Pojazdy obcych odradzają się w nieskończoność. Klikaj/Tapuj je, zanim dotrą na dół ekranu!]
         </div>
 
     </div>
