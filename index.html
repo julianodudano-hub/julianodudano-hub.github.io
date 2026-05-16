@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthwave Pinball PWA</title>
+    <title>Synthwave Pinball PWA Pro</title>
     <meta name="theme-color" content="#ff007f">
     <style>
         :root { --neon-pink: #ff007f; --neon-blue: #00f0ff; --bg: #050510; }
@@ -34,7 +34,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // --- SYSTEM AUDIO (Generowany syntezatorem z przeglądarki) ---
+        // --- SYSTEM AUDIO (Web Audio API) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSynthTone(freq, type, duration) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -42,7 +42,7 @@
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -55,27 +55,43 @@
         let highscore = localStorage.getItem('pinball_hi') || 0;
         document.getElementById('highscore').innerText = highscore.toString().padStart(4, '0');
 
-        // --- FIZYKA I OBIEKTY ---
-        let ball = { x: 200, y: 150, vx: 3, vy: 0, radius: 10, gravity: 0.25 };
+        // --- FIZYKA ---
+        let ball = { x: 200, y: 150, vx: 2, vy: 0, radius: 10, gravity: 0.3 };
         
+        // Precyzyjnie ustawione punkty bazowe flipperów (lewy dolny trójkąt i prawy dolny trójkąt)
         let flippers = {
-            left: { x: 120, y: 540, length: 70, angle: 0.3, targetAngle: 0.3, isPressed: false },
-            right: { x: 280, y: 540, length: 70, angle: Math.PI - 0.3, targetAngle: Math.PI - 0.3, isPressed: false }
+            left: { 
+                x: 100, y: 530, 
+                length: 80, 
+                angle: 0.4,       // Kąt w spoczynku (lekko w dół)
+                minAngle: 0.4, 
+                maxAngle: -0.3,   // Kąt po wystrzale (w górę)
+                angularSpeed: 0,
+                isPressed: false 
+            },
+            right: { 
+                x: 300, y: 530, 
+                length: 80, 
+                angle: Math.PI - 0.4, 
+                minAngle: Math.PI - 0.4, 
+                maxAngle: Math.PI + 0.3, 
+                angularSpeed: 0,
+                isPressed: false 
+            }
         };
 
         let bumpers = [
-            { x: 130, y: 160, r: 25, color: '#00f0ff' },
-            { x: 270, y: 160, r: 25, color: '#00f0ff' },
+            { x: 120, y: 160, r: 25, color: '#00f0ff' },
+            { x: 280, y: 160, r: 25, color: '#00f0ff' },
             { x: 200, y: 260, r: 30, color: '#ff007f' }
         ];
 
-        // --- STEROWANIE ---
-        const pressLeft = () => { flippers.left.targetAngle = -0.4; flippers.left.isPressed = true; playSynthTone(300, 'square', 0.05); };
-        const releaseLeft = () => { flippers.left.targetAngle = 0.3; flippers.left.isPressed = false; };
-        const pressRight = () => { flippers.right.targetAngle = Math.PI + 0.4; flippers.right.isPressed = true; playSynthTone(300, 'square', 0.05); };
-        const releaseRight = () => { flippers.right.targetAngle = Math.PI - 0.3; flippers.right.isPressed = false; };
+        // --- OBSŁUGA STEROWANIA ---
+        const pressLeft = () => { flippers.left.isPressed = true; };
+        const releaseLeft = () => { flippers.left.isPressed = false; };
+        const pressRight = () => { flippers.right.isPressed = true; };
+        const releaseRight = () => { flippers.right.isPressed = false; };
 
-        // Klawiatura
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft') pressLeft();
             if (e.key === 'ArrowRight') pressRight();
@@ -85,7 +101,6 @@
             if (e.key === 'ArrowRight') releaseRight();
         });
 
-        // Ekran dotykowy / Mysz
         window.addEventListener('touchstart', e => {
             const touchX = e.touches[0].clientX;
             if (touchX < window.innerWidth / 2) pressLeft(); else pressRight();
@@ -94,69 +109,118 @@
             releaseLeft(); releaseRight();
         });
 
-        // --- PĘTLA GŁÓWNA GRY ---
+        // --- MATEMATYKA FIZYKI: Kolizja punktu z linią ---
+        function checkFlipperCollision(f) {
+            let endX = f.x + Math.cos(f.angle) * f.length;
+            let endY = f.y + Math.sin(f.angle) * f.length;
+
+            // Wektory segmentu i piłki
+            let abx = endX - f.x;
+            let aby = endY - f.y;
+            let acx = ball.x - f.x;
+            let acy = ball.y - f.y;
+
+            // Rzutowanie punktu na odcinek (clamping)
+            let ab_len_sq = abx*abx + aby*aby;
+            let t = (acx*abx + acy*aby) / ab_len_sq;
+            t = Math.max(0, Math.min(1, t));
+
+            // Najbliższy punkt na flipperze do środka piłki
+            let closestX = f.x + t * abx;
+            let closestY = f.y + t * aby;
+
+            let distX = ball.x - closestX;
+            let distY = ball.y - closestY;
+            let distance = Math.sqrt(distX*distX + distY*distY);
+
+            // Jeśli doszło do kontaktu z linią flippera
+            if (distance < ball.radius + 4) {
+                // Obliczanie normalnej wektora odbicia
+                let nx = distX / distance;
+                let ny = distY / distance;
+
+                // Wypchnięcie piłki z wnętrza flippera (żeby nie utknęła)
+                ball.x = closestX + nx * (ball.radius + 5);
+                ball.y = closestY + ny * (ball.radius + 5);
+
+                // Prędkość liniowa punktu uderzenia na flipperze wynikająca z jego rotacji
+                let linearVel = f.angularSpeed * (t * f.length);
+                let fvx = -ny * linearVel;
+                let fvy = nx * linearVel;
+
+                // Względna prędkość piłki do ruchomego flippera
+                let rvx = ball.vx - fvx;
+                let rvy = ball.vy - fvy;
+
+                // Odbicie wektorowe (iloczyn skalarny)
+                let dot = rvx * nx + rvy * ny;
+
+                if (dot < 0) { // Odbijaj tylko wtedy, gdy leci w stronę flippera
+                    ball.vx = (rvx - 2 * dot * nx) + fvx;
+                    ball.vy = (rvy - 2 * dot * ny) * 0.8 + fvy; // Tłumienie pionowe dla balansu
+                    
+                    if (Math.abs(f.angularSpeed) > 0.01) {
+                        playSynthTone(450, 'sawtooth', 0.1); // Dynamiczny dźwięk mocnego odbicia
+                    } else {
+                        playSynthTone(250, 'triangle', 0.08); // Zwykłe stoczenie się
+                    }
+                }
+            }
+        }
+
+        // --- AKTUALIZACJA LOGIKI ---
         function update() {
-            // Ruch piłki i grawitacja
             ball.vy += ball.gravity;
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // Odbicia od ścian
-            if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.vx *= -0.8; playSynthTone(150, 'triangle', 0.1); }
-            if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.vx *= -0.8; playSynthTone(150, 'triangle', 0.1); }
-            if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.vy *= -0.8; }
+            // Odbicia od krawędzi canvasu
+            if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.vx *= -0.7; playSynthTone(150, 'triangle', 0.05); }
+            if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.vx *= -0.7; playSynthTone(150, 'triangle', 0.05); }
+            if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.vy *= -0.7; }
 
-            // Płynny ruch łopatek (Flippery)
-            flippers.left.angle += (flippers.left.targetAngle - flippers.left.angle) * 0.4;
-            flippers.right.angle += (flippers.right.targetAngle - flippers.right.angle) * 0.4;
+            // Aktualizacja kątów i prędkości kątowej flipperów
+            [flippers.left, flippers.right].forEach((f, idx) => {
+                let target = f.isPressed ? f.maxAngle : f.minAngle;
+                let oldAngle = f.angle;
+                
+                // Płynny, ale dynamiczny powrót i natychmiastowy strzał
+                if (f.isPressed) {
+                    f.angle += (target - f.angle) * 0.6; 
+                } else {
+                    f.angle += (target - f.angle) * 0.2;
+                }
+                
+                f.angularSpeed = f.angle - oldAngle; // Obliczanie prędkości obrotu dla fizyki impetu
+            });
 
-            // Kolizje z bumperami
+            // Wykrywanie zaawansowanych kolizji flipperów
+            checkFlipperCollision(flippers.left);
+            checkFlipperCollision(flippers.right);
+
+            // Kolizje z okrągłymi bumperami
             bumpers.forEach(b => {
                 let dx = ball.x - b.x;
                 let dy = ball.y - b.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist < ball.radius + b.r) {
-                    // Matematyka odbicia wektorowego
                     let nx = dx / dist;
                     let ny = dy / dist;
-                    let penetration = (ball.radius + b.r) - dist;
-                    ball.x += nx * penetration;
+                    ball.x = b.x + nx * (ball.radius + b.r);
                     
                     let dot = ball.vx * nx + ball.vy * ny;
-                    ball.vx = (ball.vx - 2 * dot * nx) * 1.3; // Przyspieszenie po odbiciu
-                    ball.vy = (ball.vy - 2 * dot * ny) * 1.3;
+                    ball.vx = (ball.vx - 2 * dot * nx) * 1.25; 
+                    ball.vy = (ball.vy - 2 * dot * ny) * 1.25;
                     
                     score += 10;
                     document.getElementById('score').innerText = score.toString().padStart(4, '0');
-                    playSynthTone(600, 'sine', 0.15);
+                    playSynthTone(600, 'sine', 0.12);
                 }
             });
 
-            // Kolizja z lewym flipperem (uproszczona fizyka punkt-linia)
-            if (ball.y > 500 && ball.y < 560) {
-                [flippers.left, flippers.right].forEach(f => {
-                    let endX = f.x + Math.cos(f.angle) * f.length;
-                    let endY = f.y + Math.sin(f.angle) * f.length;
-                    
-                    // Odległość piłki od ramienia flippera
-                    let l2 = f.length * f.length;
-                    let t = ((ball.x - f.x) * (endX - f.x) + (ball.y - f.y) * (endY - f.y)) / l2;
-                    t = Math.max(0, Math.min(1, t));
-                    let projX = f.x + t * (endX - f.x);
-                    let projY = f.y + t * (endY - f.y);
-                    let dist = Math.sqrt((ball.x - projX)**2 + (ball.y - projY)**2);
-
-                    if (dist < ball.radius + 5) {
-                        ball.vy = f.isPressed ? -7 : -3;
-                        ball.vx += f.isPressed ? (f === flippers.left ? 3 : -3) : 0;
-                        playSynthTone(400, 'sawtooth', 0.1);
-                    }
-                });
-            }
-
-            // Reset w przypadku spadnięcia (Przegrana)
+            // Porażka - Piłka spada na dół
             if (ball.y > canvas.height) {
-                playSynthTone(80, 'sawtooth', 0.5);
+                playSynthTone(90, 'sawtooth', 0.4);
                 if (score > highscore) {
                     highscore = score;
                     localStorage.setItem('pinball_hi', highscore);
@@ -164,17 +228,18 @@
                 }
                 score = 0;
                 document.getElementById('score').innerText = "0000";
-                ball = { x: Math.random() * 200 + 100, y: 100, vx: 2, vy: 0, radius: 10, gravity: 0.25 };
+                ball = { x: Math.random() * 160 + 120, y: 80, vx: (Math.random() - 0.5) * 4, vy: 0, radius: 10, gravity: 0.3 };
             }
         }
 
+        // --- RYSOWANIE GRAFIKI ---
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Rysowanie neonowych linii pomocniczych / tła
-            ctx.strokeStyle = '#151535';
-            ctx.lineWidth = 2;
-            for(let i=0; i<canvas.height; i+=40) {
+            // Retro siatka w tle
+            ctx.strokeStyle = '#121230';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.height; i+=30) {
                 ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
             }
 
@@ -185,12 +250,12 @@
                 ctx.fillStyle = '#050515';
                 ctx.fill();
                 ctx.strokeStyle = b.color;
-                ctx.lineWidth = 5;
-                ctx.shadowBlur = 15;
+                ctx.lineWidth = 4;
+                ctx.shadowBlur = 12;
                 ctx.shadowColor = b.color;
                 ctx.stroke();
             });
-            ctx.shadowBlur = 0; // Reset cieni
+            ctx.shadowBlur = 0;
 
             // Flippery
             [flippers.left, flippers.right].forEach(f => {
@@ -198,17 +263,26 @@
                 ctx.moveTo(f.x, f.y);
                 ctx.lineTo(f.x + Math.cos(f.angle) * f.length, f.y + Math.sin(f.angle) * f.length);
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 10;
+                ctx.lineWidth = 8;
                 ctx.lineCap = 'round';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = varName = '#fff';
                 ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // Narysowanie punktu obrotu (fizycznej osi) dla ładniejszego wyglądu
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, 6, 0, Math.PI*2);
+                ctx.fillStyle = varName = '#ff007f';
+                ctx.fill();
             });
 
             // Piłka
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fillStyle = varName = '#fff';
+            ctx.fillStyle = '#00f0ff';
             ctx.shadowBlur = 10;
-            ctx.shadowColor = '#fff';
+            ctx.shadowColor = '#00f0ff';
             ctx.fill();
             ctx.shadowBlur = 0;
         }
@@ -219,10 +293,10 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MONOLITYCZNE AUTOMATYCZNE PWA ---
+        // --- AUTOMATYCZNE MONOLITYCZNE PWA ---
         const manifestObj = {
             "short_name": "SynthPinball",
-            "name": "Synthwave Cyber Pinball PWA",
+            "name": "Synthwave Cyber Pinball PWA Pro",
             "start_url": window.location.href,
             "background_color": "#050510",
             "display": "standalone",
@@ -230,26 +304,20 @@
             "icons": [{"src": "https://github.com/fluidicon.png", "type": "image/png", "sizes": "512x512"}]
         };
         const manifestBlob = new Blob([JSON.stringify(manifestObj)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(manifestBlob);
         const manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest'; manifestLink.href = manifestURL;
+        manifestLink.rel = 'manifest'; manifestLink.href = URL.createObjectURL(manifestBlob);
         document.head.appendChild(manifestLink);
 
         const swCode = `
-            const CACHE_NAME = 'pinball-v1';
-            self.addEventListener('install', e => {
-                e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.add(location.href)));
-            });
-            self.addEventListener('fetch', e => {
-                e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
-            });
+            const CACHE_NAME = 'pinball-v2';
+            self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.add(location.href))));
+            self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
         `;
         if ('serviceWorker' in navigator) {
             const swBlob = new Blob([swCode], {type: 'text/javascript'});
             window.navigator.serviceWorker.register(URL.createObjectURL(swBlob), { scope: './' });
         }
 
-        // Start gry
         loop();
     </script>
 </body>
