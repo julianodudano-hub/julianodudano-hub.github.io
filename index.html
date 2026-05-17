@@ -2,75 +2,82 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Fractal Engine & Synth v3.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quantum Fractal Engine - Ultimate Edition</title>
     <style>
-        * { margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; }
-        body, html { width: 100%; height: 100%; background: #050505; font-family: 'Courier New', monospace; color: #00ffcc; }
+        * { margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; touch-action: none; user-select: none; }
+        body, html { width: 100%; height: 100%; background: #020205; font-family: 'Courier New', monospace; color: #00ffcc; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
         #ui {
-            position: absolute; top: 20px; left: 20px; z-index: 10;
-            background: rgba(0, 0, 0, 0.75); padding: 20px; border: 1px solid #00ffcc;
-            border-radius: 4px; box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
-            pointer-events: none; transition: opacity 0.3s;
+            position: absolute; top: 15px; left: 15px; z-index: 10;
+            background: rgba(0, 0, 0, 0.7); padding: 15px; border: 1px solid #00ffcc;
+            border-radius: 4px; pointer-events: none; font-size: 11px;
         }
-        h1 { font-size: 16px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
-        p { font-size: 12px; margin: 5px 0; color: #88ffeb; }
+        h1 { font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Strefy dotykowe dla telefonów */
+        .touch-zone { position: absolute; top: 0; width: 50%; height: 100%; z-index: 5; }
+        #left-zone { left: 0; }
+        #right-zone { right: 0; }
+
+        /* Wizualny wskaźnik joysticka */
+        #joystick-dot {
+            position: absolute; width: 40px; height: 40px; background: rgba(0, 255, 204, 0.3);
+            border: 2px solid #00ffcc; border-radius: 50%; display: none; pointer-events: none; z-index: 6;
+        }
         
         #intro {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 5, 0.95); z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: #050508; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;
         }
         button {
             background: transparent; border: 2px solid #00ffcc; color: #00ffcc;
-            padding: 15px 30px; font-size: 18px; font-family: inherit; cursor: pointer;
-            margin-top: 20px; text-transform: uppercase; transition: all 0.2s;
+            padding: 15px 40px; font-size: 18px; font-family: inherit; cursor: pointer;
+            margin-top: 25px; text-transform: uppercase; transition: all 0.2s;
         }
         button:hover { background: #00ffcc; color: #000; box-shadow: 0 0 15px #00ffcc; }
-        .crosshair {
-            position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
-            transform: translate(-50%, -50%); border: 1px solid rgba(0,255,204,0.5);
-            border-radius: 50%; pointer-events: none; z-index: 5;
-        }
     </style>
 </head>
 <body>
 
     <div id="intro">
-        <h1>Kwantowy Eksplorator Fraktali</h1>
-        <p>Generowanie obrazu WebGL2 (Raymarching) + Dźwięk proceduralny Web Audio API</p>
-        <button id="startBtn">Uruchom Silnik</button>
+        <h1>Kwantowy Silnik Fraktali</h1>
+        <p style="color: #66ccff; margin-top: 5px;">PC: WSAD + Myszka | Telefon: Lewa strona ruch, Prawa obrót</p>
+        <button id="startBtn">Uruchom</button>
     </div>
 
     <div id="ui">
-        <h1>Fractal Engine v3.0</h1>
-        <p>Naciśnij ekran, aby przejąć myszkę (Pointer Lock)</p>
-        <p>Ruch: [W, S, A, D] | Góra/Dół: [Space / Shift]</p>
+        <h1>Fractal Engine v3.5</h1>
         <p id="fps">FPS: --</p>
     </div>
     
-    <div class="crosshair"></div>
+    <div id="joystick-dot"></div>
+    <div id="left-zone" class="touch-zone"></div>
+    <div id="right-zone" class="touch-zone"></div>
     <canvas id="glCanvas"></canvas>
 
     <script>
-        // --- SEKCJA GŁÓWNA & STEROWANIE ---
         const canvas = document.getElementById('glCanvas');
         const startBtn = document.getElementById('startBtn');
         const intro = document.getElementById('intro');
         const fpsCounter = document.getElementById('fps');
+        const joyDot = document.getElementById('joystick-dot');
 
         let gl, program;
-        let audioCtx, synthInterval;
         let lastTime = 0, fpsTime = 0, frameCount = 0;
         
         // Stan kamery
-        let camPos = [0.0, 0.0, -3.5];
-        let camRotation = [0.0, 0.0]; // pitch, yaw
+        let camPos = [0.0, 0.0, -3.0];
+        let camRotation = [0.0, 0.0]; 
         let keys = {};
 
-        // Dopasowanie okna
+        // Sterowanie mobilne
+        let touchStartPos = null;
+        let touchRightLast = null;
+        let moveVec = { x: 0, y: 0 };
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -79,164 +86,138 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Obsługa myszy i klawiatury
-        canvas.addEventListener('click', () => canvas.requestPointerLock());
-        document.addEventListener('pointerlockchange', () => {});
+        // --- OBSŁUGA PC (Klawiatura + Pointer Lock) ---
+        canvas.addEventListener('click', () => {
+            if(window.innerWidth > 768) canvas.requestPointerLock();
+        });
+        
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === canvas) {
-                camRotation[1] -= e.movementX * 0.002; // Yaw
-                camRotation[0] = Math.max(-Math.PI/2, Math.min(Math.PI/2, camRotation[0] - e.movementY * 0.002)); // Pitch
+                camRotation[1] -= e.movementX * 0.002;
+                camRotation[0] = Math.max(-Math.PI/2, Math.min(Math.PI/2, camRotation[0] - e.movementY * 0.002));
             }
         });
         document.addEventListener('keydown', (e) => keys[e.code] = true);
         document.addEventListener('keyup', (e) => keys[e.code] = false);
 
-        // --- KOD SHADERÓW (GLSL ES 3.00) ---
-        const vsSource = `#version 300 es
-            in vec2 position;
-            void main() {
-                gl_Position = vec4(position, 0.0, 1.0);
+        // --- OBSŁUGA SMARTFONA (Touch Events) ---
+        window.addEventListener('touchstart', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.clientX < window.innerWidth / 2) {
+                    touchStartPos = { x: t.clientX, y: t.clientY };
+                    joyDot.style.display = 'block';
+                    joyDot.style.left = `${t.clientX - 20}px`;
+                    joyDot.style.top = `${t.clientY - 20}px`;
+                } else {
+                    touchRightLast = { x: t.clientX, y: t.clientY };
+                }
             }
-        `;
+        });
+        
+        window.addEventListener('touchmove', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.clientX < window.innerWidth / 2 && touchStartPos) {
+                    let dx = t.clientX - touchStartPos.x;
+                    let dy = t.clientY - touchStartPos.y;
+                    let dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+                    let angle = Math.atan2(dy, dx);
+                    
+                    moveVec.x = Math.cos(angle) * (dist / 50);
+                    moveVec.y = Math.sin(angle) * (dist / 50);
+                    
+                    joyDot.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
+                } else if (t.clientX >= window.innerWidth / 2 && touchRightLast) {
+                    camRotation[1] -= (t.clientX - touchRightLast.x) * 0.005;
+                    camRotation[0] = Math.max(-Math.PI/2, Math.min(Math.PI/2, camRotation[0] + (t.clientY - touchRightLast.y) * 0.005));
+                    touchRightLast = { x: t.clientX, y: t.clientY };
+                }
+            }
+        });
 
-        // Serce silnika: Raymarching i Fraktal Menger Sponge w jednym shaderze fragmentu
+        window.addEventListener('touchend', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.clientX < window.innerWidth / 2) {
+                    touchStartPos = null;
+                    moveVec = { x: 0, y: 0 };
+                    joyDot.style.display = 'none';
+                    joyDot.style.transform = 'none';
+                } else {
+                    touchRightLast = null;
+                }
+            }
+        });
+
+        // --- SHADERY WEBGL2 ---
+        const vsSource = `#version 300 es
+            in vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
+
         const fsSource = `#version 300 es
             precision highp float;
             out vec4 fragColor;
-            
             uniform vec2 u_resolution;
             uniform float u_time;
             uniform vec3 u_camPos;
             uniform vec2 u_camRot;
 
-            #define MAX_STEPS 80
-            #define MAX_DIST 15.0
-            #define SURF_DIST 0.001
+            mat2 rot(float a) { return mat2(cos(a), -sin(a), sin(a), cos(a)); }
 
-            // Rotacja 2D
-            mat2 rot(float a) {
-                return mat2(cos(a), -sin(a), sin(a), cos(a));
-            }
-
-            // Konstrukcja fraktala (Menger Sponge / Infinite Box variation)
-            float sdBox(vec3 p, vec3 b) {
-                vec3 q = abs(p) - b;
-                return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
-            }
-
-            float deFractal(vec3 p) {
-                // Modyfikacja przestrzeni w czasie
-                p.xz *= rot(u_time * 0.05);
-                p.yx *= rot(u_time * 0.03);
-                
-                float scale = 1.0;
-                float d = sdBox(p, vec3(1.0));
-
-                for(int i = 0; i < 4; i++) {
-                    vec3 a = mod(p * scale, 2.0) - 1.0;
-                    scale *= 3.0;
-                    vec3 r = abs(1.0 - 3.0 * abs(a));
-                    
-                    float da = max(r.x, r.y);
-                    float db = max(r.y, r.z);
-                    float dc = max(r.z, r.x);
-                    float c = (min(da, min(db, dc)) - 1.0) / scale;
-                    
-                    d = max(d, c);
+            float map(vec3 p) {
+                p.xz *= rot(u_time * 0.1);
+                float d = length(p) - 1.0; // Kula bazowa
+                // Generowanie struktur fraktalnych (zbalansowane pod mobile)
+                for(int i=0; i<3; i++) {
+                    p = abs(p) - 0.4;
+                    p.xy *= rot(0.5);
+                    p.zy *= rot(0.3);
+                    d = min(d, (length(p.xz) - 0.05));
                 }
                 return d;
             }
 
-            // Definiowanie sceny
-            float map(vec3 p) {
-                return deFractal(p);
-            }
-
-            // Obliczanie wektora normalnego powierzchni dla oświetlenia
-            vec3 getNormal(vec3 p) {
-                vec2 e = vec2(0.001, 0.0);
-                float d = map(p);
-                vec3 n = d - vec3(map(p-e.xyy), map(p-e.yxy), map(p-e.yyx));
-                return normalize(n);
-            }
-
             void main() {
                 vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
-                
-                // Kierunek patrzenia kamery na podstawie obrotu myszy
                 vec3 ro = u_camPos;
-                vec3 rd = normalize(vec3(uv, 1.0));
+                vec3 rd = normalize(vec3(uv, 1.2));
                 
-                rd.yz *= rot(u_camRot.x); // Pitch
-                rd.xz *= rot(u_camRot.y); // Yaw
+                rd.yz *= rot(u_camRot.x);
+                rd.xz *= rot(u_camRot.y);
 
-                // Raymarching loop
                 float dO = 0.0;
                 int steps = 0;
-                for(int i = 0; i < MAX_STEPS; i++) {
+                for(int i = 0; i < 60; i++) {
                     vec3 p = ro + rd * dO;
                     float dS = map(p);
                     dO += dS;
                     steps = i;
-                    if(dO >= MAX_DIST || abs(dS) < SURF_DIST) break;
+                    if(dO >= 12.0 || abs(dS) < 0.002) break;
                 }
 
-                // Generowanie koloru i światła
                 vec3 color = vec3(0.0);
-
-                if(dO < MAX_DIST) {
-                    vec3 p = ro + rd * dO;
-                    vec3 n = getNormal(p);
-                    vec3 r = reflect(rd, n);
-
-                    // Światło kierunkowe + Ambient Occlusion z liczby kroków
-                    float light = max(0.0, dot(n, normalize(vec3(1.0, 2.0, -1.0))));
-                    float ao = 1.0 - (float(steps) / float(MAX_STEPS));
-                    
-                    // Kolor bazowy zależny od pozycji fraktala
-                    vec3 baseColor = 0.5 + 0.5 * cos(u_time * 0.2 + p.xyz + vec3(0.0, 2.0, 4.0));
-                    color = baseColor * (light + 0.2) * ao;
-                    
-                    // Efekt neonowych krawędzi (Glow)
-                    color += vec3(0.0, 1.0, 0.8) * (float(steps) * 0.015);
+                if(dO < 12.0) {
+                    float edgeGlow = float(steps) / 60.0;
+                    color = vec3(0.0, 0.7, 1.0) * edgeGlow * 2.0;
+                    color += vec3(0.5, 0.0, 0.5) * (1.0 - edgeGlow);
                 }
-
-                // Mgła i efekty głębi
-                color = mix(color, vec3(0.01, 0.02, 0.03), 1.0 - exp(-0.08 * dO * dO));
-
-                // Post-processing: Aberracja chromatyczna (lekka) i winieta
-                color *= 0.5 + 0.5 * power(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.25); // uproszczona winieta
-
+                
+                // Mgła do ciemności
+                color = mix(color, vec3(0.01, 0.01, 0.03), 1.0 - exp(-0.1 * dO * dO));
                 fragColor = vec4(color, 1.0);
-            }
-            
-            float power(float base, float exp) {
-                return pow(max(base, 0.0), exp);
             }
         `;
 
-        // --- INICJALIZACJA WEBGL2 ---
         function initGL() {
             gl = canvas.getContext('webgl2');
-            if (!gl) { alert('Twoja przeglądarka nie wspiera WebGL2!'); return; }
+            if (!gl) return;
 
             const vs = gl.createShader(gl.VERTEX_SHADER);
-            gl.shaderSource(vs, vsSource);
-            gl.compileShader(vs);
+            gl.shaderSource(vs, vsSource); gl.compileShader(vs);
 
             const fs = gl.createShader(gl.FRAGMENT_SHADER);
-            gl.shaderSource(fs, fsSource);
-            gl.compileShader(fs);
+            gl.shaderSource(fs, fsSource); gl.compileShader(fs);
 
             program = gl.createProgram();
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error(gl.getShaderInfoLog(fs));
-                return;
-            }
+            gl.attachShader(program, vs); gl.attachShader(program, fs);
+            gl.linkProgram(program); gl.useProgram(program);
 
             const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
             const buffer = gl.createBuffer();
@@ -246,79 +227,6 @@
             const posAttr = gl.getAttribLocation(program, 'position');
             gl.enableVertexAttribArray(posAttr);
             gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
-
-            gl.useProgram(program);
-        }
-
-        // --- PROCEDURALNY SYNTEZATOR (AUDIO) ---
-        function initAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Główny mikser (Limiter i Reverb-like Delay)
-            const masterDelay = audioCtx.createDelay(5.0);
-            const masterFeedback = audioCtx.createGain();
-            const masterGain = audioCtx.createGain();
-            
-            masterDelay.delayTime.value = 0.4;
-            masterFeedback.gain.value = 0.4;
-            masterGain.gain.value = 0.15; // Bezpieczna głośność
-
-            masterDelay.connect(masterFeedback);
-            masterFeedback.connect(masterDelay);
-            
-            masterGain.connect(audioCtx.destination);
-            masterDelay.connect(masterGain);
-
-            // Generator sekwencji (Cyberpunk Drone)
-            let step = 0;
-            const scale = [55, 65.41, 73.42, 82.41, 98.00]; // Niskie tony w Hz
-
-            synthInterval = setInterval(() => {
-                if(Math.random() > 0.3) return;
-
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                const filter = audioCtx.createBiquadFilter();
-
-                osc.type = Math.random() > 0.5 ? 'sawtooth' : 'triangle';
-                // Wybór losowej nuty z mrocznej skali basowej
-                const baseFreq = scale[Math.floor(Math.random() * scale.length)];
-                osc.frequency.setValueAtTime(baseFreq * (Math.random() > 0.9 ? 2.0 : 1.0), audioCtx.currentTime);
-
-                filter.type = 'lowpass';
-                filter.Q.value = 8;
-                filter.frequency.setValueAtTime(200, audioCtx.currentTime);
-                filter.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.4);
-
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
-
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(masterGain);
-                gain.connect(masterDelay);
-
-                osc.start();
-                osc.stop(audioCtx.currentTime + 1.6);
-                
-                step++;
-            }, 200);
-        }
-
-        // --- PĘTLA AKTUALIZACJI I RENDEROWANIA ---
-        function updateMovement(deltaTime) {
-            let speed = 1.2 * deltaTime;
-            
-            // Obliczanie wektorów kierunkowych na podstawie obrotu
-            let forward = [Math.sin(camRotation[1]), 0, Math.cos(camRotation[1])];
-            let right = [Math.cos(camRotation[1]), 0, -Math.sin(camRotation[1])];
-
-            if (keys['KeyW']) { camPos[0] += forward[0] * speed; camPos[2] += forward[2] * speed; }
-            if (keys['KeyS']) { camPos[0] -= forward[0] * speed; camPos[2] -= forward[2] * speed; }
-            if (keys['KeyA']) { camPos[0] -= right[0] * speed; camPos[2] -= right[2] * speed; }
-            if (keys['KeyD']) { camPos[0] += right[0] * speed; camPos[2] += right[2] * speed; }
-            if (keys['Space']) camPos[1] += speed;
-            if (keys['ShiftLeft']) camPos[1] -= speed;
         }
 
         function render(time) {
@@ -326,36 +234,43 @@
             let deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
-            // Licznik FPS
             frameCount++;
             fpsTime += deltaTime;
             if (fpsTime >= 1.0) {
                 fpsCounter.innerText = `FPS: ${frameCount}`;
-                frameCount = 0;
-                fpsTime = 0;
+                frameCount = 0; fpsTime = 0;
             }
 
-            updateMovement(deltaTime);
+            // --- AKTUALIZACJA RUCHU (PC + MOBILE) ---
+            let speed = 2.0 * deltaTime;
+            let forward = [Math.sin(camRotation[1]), 0, Math.cos(camRotation[1])];
+            let right = [Math.cos(camRotation[1]), 0, -Math.sin(camRotation[1])];
 
-            // Przekazywanie zmiennych (Uniforms) do Shadera
+            // Ruch z klawiatury PC
+            if (keys['KeyW']) { camPos[0] += forward[0] * speed; camPos[2] += forward[2] * speed; }
+            if (keys['KeyS']) { camPos[0] -= forward[0] * speed; camPos[2] -= forward[2] * speed; }
+            if (keys['KeyA']) { camPos[0] -= right[0] * speed; camPos[2] -= right[2] * speed; }
+            if (keys['KeyD']) { camPos[0] += right[0] * speed; camPos[2] += right[2] * speed; }
+            
+            // Ruch z joysticka mobilnego
+            if (touchStartPos) {
+                camPos[0] -= (forward[0] * moveVec.y - right[0] * moveVec.x) * speed;
+                camPos[2] -= (forward[2] * moveVec.y - right[2] * moveVec.x) * speed;
+            }
+
+            // Uniforms do GPU
             gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), canvas.width, canvas.height);
             gl.uniform1f(gl.getUniformLocation(program, 'u_time'), currentTime);
             gl.uniform3f(gl.getUniformLocation(program, 'u_camPos'), camPos[0], camPos[1], camPos[2]);
             gl.uniform2f(gl.getUniformLocation(program, 'u_camRot'), camRotation[0], camRotation[1]);
 
-            // Rysowanie pełnoekranowego prostokąta (uruchamia shader dla każdego piksela)
             gl.drawArrays(gl.TRIANGLES, 0, 6);
-
             requestAnimationFrame(render);
         }
 
-        // --- START ---
         startBtn.addEventListener('click', () => {
-            intro.style.opacity = 0;
-            setTimeout(() => intro.remove(), 300);
-            
+            intro.remove();
             initGL();
-            initAudio();
             requestAnimationFrame(render);
         });
     </script>
