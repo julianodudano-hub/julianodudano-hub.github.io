@@ -3,283 +3,641 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zaawansowany Panel Dashboard</title>
+    <title>Zaawansowany Kalkulator Naukowo-Matematyczny</title>
     <style>
         :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --accent: #3b82f6;
+            --bg-color: #0f172a;
+            --calc-bg: #1e293b;
+            --screen-bg: #020617;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
             --accent-hover: #2563eb;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --transition: all 0.3s ease;
+            --fn-color: #6366f1;
+            --fn-hover: #4f46e5;
+            --op-color: #f59e0b;
+            --op-hover: #d97706;
+            --num-color: #334155;
+            --num-hover: #475569;
+            --danger-color: #ef4444;
+            --danger-hover: #dc2626;
         }
 
         [data-theme="light"] {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --accent: #2563eb;
+            --bg-color: #f1f5f9;
+            --calc-bg: #ffffff;
+            --screen-bg: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --accent-color: #2563eb;
             --accent-hover: #1d4ed8;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --fn-color: #4f46e5;
+            --fn-hover: #3730a3;
+            --op-color: #ea580c;
+            --op-hover: #c2410c;
+            --num-color: #e2e8f0;
+            --num-hover: #cbd5e1;
+            --danger-color: #e11d48;
+            --danger-hover: #be123c;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
         }
 
         body {
-            background-color: var(--bg-primary);
-            color: var(--text-main);
-            transition: var(--transition);
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            display: flex;
+            padding: 20px;
+            transition: background-color 0.3s ease;
         }
 
-        /* Sidebar */
-        aside {
-            width: 260px;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            color: var(--accent);
-        }
-
-        nav ul {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        nav a {
-            color: var(--text-muted);
-            text-decoration: none;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            display: block;
-            transition: var(--transition);
-            font-weight: 500;
-        }
-
-        nav a:hover, nav a.active {
-            background: var(--bg-primary);
-            color: var(--accent);
-        }
-
-        /* Main Content */
-        main {
-            flex-grow: 1;
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
+        .calculator-container {
+            background-color: var(--calc-bg);
             width: 100%;
+            max-width: 950px;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 24px;
+            transition: background-color 0.3s ease;
         }
 
-        header {
+        .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
         }
 
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
+        .title {
+            color: var(--text-primary);
+            font-size: 1.2rem;
             font-weight: 600;
-            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .btn:hover {
-            background: var(--accent-hover);
+        .modes {
+            display: flex;
+            gap: 8px;
         }
 
-        .btn-toggle {
+        .mode-btn {
             background: transparent;
-            color: var(--text-main);
-            border: 1px solid var(--border);
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
         }
 
-        /* Grid System */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 100fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+        .mode-btn.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
         }
 
-        .card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            transition: var(--transition);
+        .screen {
+            background-color: var(--screen-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: right;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+            position: relative;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        .indicators {
+            display: flex;
+            gap: 12px;
+            font-size: 0.75rem;
+            color: var(--accent-color);
+            font-weight: bold;
+            text-transform: uppercase;
         }
 
-        .card h3 {
-            margin-bottom: 0.5rem;
+        .history-display {
+            color: var(--text-secondary);
             font-size: 1.1rem;
-            color: var(--text-muted);
+            min-height: 24px;
+            overflow-x: auto;
+            white-space: nowrap;
+            margin-top: 4px;
         }
 
-        .card .value {
-            font-size: 2rem;
+        .main-display {
+            color: var(--text-primary);
+            font-size: 2.5rem;
             font-weight: 700;
+            overflow-x: auto;
+            white-space: nowrap;
+            margin-top: 8px;
         }
 
-        /* Data Table */
-        .table-container {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 0.75rem;
-            overflow: hidden;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th, td {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background: rgba(0,0,0,0.02);
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
+        .layout-wrapper {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr;
+            gap: 20px;
         }
 
         @media (max-width: 768px) {
-            body { flex-direction: column; }
-            aside { width: 100%; padding: 1rem; }
+            .layout-wrapper {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                border-top: 1px solid var(--text-secondary);
+                padding-top: 15px;
+            }
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .keypad {
+                grid-template-columns: repeat(5, 1fr);
+            }
+            .scientific-only {
+                display: none !important;
+            }
+        }
+
+        button.key {
+            border: none;
+            outline: none;
+            padding: 16px 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: var(--text-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button.key:active {
+            transform: scale(0.95);
+        }
+
+        .btn-num { background-color: var(--num-color); }
+        .btn-num:hover { background-color: var(--num-hover); }
+
+        .btn-fn { background-color: var(--fn-color); color: white; }
+        .btn-fn:hover { background-color: var(--fn-hover); }
+
+        .btn-op { background-color: var(--op-color); color: white; }
+        .btn-op:hover { background-color: var(--op-hover); }
+
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-danger:hover { background-color: var(--danger-hover); }
+
+        .btn-accent { background-color: var(--accent-color); color: white; }
+        .btn-accent:hover { background-color: var(--accent-hover); }
+
+        .col-2 { grid-column: span 2; }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: rgba(0,0,0,0.05);
+            padding: 12px;
+            border-radius: 14px;
+        }
+
+        .sidebar-title {
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--text-secondary);
+            padding-bottom: 6px;
+        }
+
+        .history-list {
+            list-style: none;
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            text-align: right;
+        }
+
+        .history-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+
+        .memory-status {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 1.2rem;
         }
     </style>
 </head>
 <body>
 
-    <aside>
-        <div class="logo">CORE.OS</div>
-        <nav>
-            <ul>
-                <li><a href="#" class="active">Dashboard</a></li>
-                <li><a href="#">Analityka</a></li>
-                <li><a href="#">Użytkownicy</a></li>
-                <li><a href="#">Ustawienia</a></li>
+<div class="calculator-container">
+    <div class="header">
+        <div class="title">
+            <span>🧮</span> MegaCalc Pro v2.5
+        </div>
+        <div class="modes">
+            <button class="mode-btn active" id="deg-rad-toggle" onclick="toggleDegRad()">DEG</button>
+            <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+        </div>
+    </div>
+
+    <div class="screen">
+        <div class="indicators">
+            <span id="memory-indicator" style="visibility: hidden;">M</span>
+            <span id="mode-indicator">DEG</span>
+        </div>
+        <div class="history-display" id="history-expr"></div>
+        <div class="main-display" id="display">0</div>
+    </div>
+
+    <div class="layout-wrapper">
+        <div class="keypad">
+            <!-- Wiersz 1: Kontrola i Pamięć -->
+            <button class="key btn-danger" onclick="clearAll()">C</button>
+            <button class="key btn-danger" onclick="backspace()">⌫</button>
+            <button class="key btn-fn" onclick="memClear()">MC</button>
+            <button class="key btn-fn" onclick="memRecall()">MR</button>
+            <button class="key btn-fn" onclick="memAdd()">M+</button>
+            <button class="key btn-fn" onclick="memSub()">M-</button>
+
+            <!-- Wiersz 2: Trygonometria i Logarytmy -->
+            <button class="key btn-fn scientific-only" onclick="inputFunc('sin(')">sin</button>
+            <button class="key btn-fn scientific-only" onclick="inputFunc('cos(')">cos</button>
+            <button class="key btn-fn scientific-only" onclick="inputFunc('tan(')">tan</button>
+            <button class="key btn-fn scientific-only" onclick="inputFunc('log(')">log</button>
+            <button class="key btn-fn scientific-only" onclick="inputFunc('ln(')">ln</button>
+            <button class="key btn-op" onclick="inputOp('^')">xʸ</button>
+
+            <!-- Wiersz 3: Zaawansowane funkcje -->
+            <button class="key btn-fn scientific-only" onclick="inputFunc('asin(')">asin</button>
+            <button class="key btn-fn scientific-only" onclick="inputFunc('acos(')">acos</button>
+            <button class="key btn-fn scientific-only" onclick="inputFunc('atan(')">atan</button>
+            <button class="key btn-fn scientific-only" onclick="inputConst('π')">π</button>
+            <button class="key btn-fn scientific-only" onclick="inputConst('e')">e</button>
+            <button class="key btn-op" onclick="inputFunc('sqrt(')">√</button>
+
+            <!-- Wiersz 4: Cyfry i Podstawowe operacje -->
+            <button class="key btn-num" onclick="inputNum('7')">7</button>
+            <button class="key btn-num" onclick="inputNum('8')">8</button>
+            <button class="key btn-num" onclick="inputNum('9')">9</button>
+            <button class="key btn-op" onclick="inputOp('/')">÷</button>
+            <button class="key btn-fn" onclick="inputNum('(')">(</button>
+            <button class="key btn-fn" onclick="inputNum(')')">)</button>
+
+            <!-- Wiersz 5 -->
+            <button class="key btn-num" onclick="inputNum('4')">4</button>
+            <button class="key btn-num" onclick="inputNum('5')">5</button>
+            <button class="key btn-num" onclick="inputNum('6')">6</button>
+            <button class="key btn-op" onclick="inputOp('*')">×</button>            <button class="key btn-fn" onclick="factorial()">x!</button>
+            <button class="key btn-fn" onclick="percentage()">%</button>
+
+            <!-- Wiersz 6 -->
+            <button class="key btn-num" onclick="inputNum('1')">1</button>
+            <button class="key btn-num" onclick="inputNum('2')">2</button>
+            <button class="key btn-num" onclick="inputNum('3')">3</button>
+            <button class="key btn-op" onclick="inputOp('-')">−</button>
+            <button class="key btn-fn col-2" onclick="modulus()">Mod</button>
+
+            <!-- Wiersz 7 -->
+            <button class="key btn-num" onclick="inputNum('0')">0</button>
+            <button class="key btn-num" onclick="inputNum('.')">.</button>
+            <button class="key btn-fn" onclick="changeSign()">±</button>
+            <button class="key btn-op" onclick="inputOp('+')">+</button>
+            <button class="key btn-accent col-2" onclick="calculate()">=</button>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-title">Pamięć RAM (M)</div>
+            <div class="memory-status">
+                <span>Stan:</span>
+                <span id="memory-val">0</span>
+            </div>
+            <div class="sidebar-title">Historia operacji</div>
+            <ul class="history-list" id="history-log">
+                <li style="text-align:center; color:var(--text-secondary); font-size:0.8rem; margin-top:10px;">Brak wpisów</li>
             </ul>
-        </nav>
-    </aside>
+        </div>
+    </div>
+</div>
 
-    <main>
-        <header>
-            <div>
-                <h1>Witaj ponownie</h1>
-                <p style="color: var(--text-muted);">Oto podsumowanie operacji z dzisiejszego dnia.</p>
-            </div>
-            <div style="display: flex; gap: 1rem;">
-                <button class="btn btn-toggle" id="themeToggle">Zmień motyw</button>
-                <button class="btn" id="actionBtn">Generuj raport</button>
-            </div>
-        </header>
+<script>
+    let currentInput = "0";
+    let internalExpression = ""; 
+    let isRad = false;
+    let memoryValue = 0;
+    let shouldResetScreen = false;
 
-        <section class="grid">
-            <div class="card">
-                <h3>Wyświetlenia</h3>
-                <div class="value" id="stat-views">142,384</div>
-            </div>
-            <div class="card">
-                <h3>Konwersja</h3>
-                <div class="value" id="stat-conversion">2.48%</div>
-            </div>
-            <div class="card">
-                <h3>Przychód</h3>
-                <div class="value" id="stat-revenue">$12,492</div>
-            </div>
-        </section>
+    const display = document.getElementById("display");
+    const historyExpr = document.getElementById("history-expr");
+    const historyLog = document.getElementById("history-log");
+    const memoryIndicator = document.getElementById("memory-indicator");
+    const memoryValDisplay = document.getElementById("memory-val");
+    const modeIndicator = document.getElementById("mode-indicator");
+    const degRadToggle = document.getElementById("deg-rad-toggle");
 
-        <section class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Status</th>
-                        <th>Użytkownik</th>
-                        <th>Data</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    </tbody>
-            </table>
-        </section>
-    </main>
+    function updateDisplay() {
+        display.innerText = currentInput;
+    }
 
-    <script>
-        // Zarządzanie motywem (Light/Dark)
-        const themeToggle = document.getElementById('themeToggle');
-        const currentTheme = localStorage.getItem('theme') || 'dark';
+    function inputNum(num) {
+        if (currentInput === "0" && num !== "." || shouldResetScreen) {
+            currentInput = num;
+            shouldResetScreen = false;
+        } else {
+            if (num === "." && currentInput.includes(".")) return;
+            currentInput += num;
+        }
+        updateDisplay();
+    }
+
+    function inputOp(op) {
+        if (shouldResetScreen) shouldResetScreen = false;
         
-        document.documentElement.setAttribute('data-theme', currentTheme);
+        let lastChar = currentInput.slice(-1);
+        if (["+", "-", "*", "/", "^"].includes(lastChar)) {
+            currentInput = currentInput.slice(0, -1) + op;
+        } else {
+            currentInput += op;
+        }
+        updateDisplay();
+    }
 
-        themeToggle.addEventListener('click', () => {
-            const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-        });
+    function inputFunc(func) {
+        if (currentInput === "0" || shouldResetScreen) {
+            currentInput = func;
+            shouldResetScreen = false;
+        } else {
+            currentInput += func;
+        }
+        updateDisplay();
+    }
 
-        // Dynamiczne generowanie danych (Mock API response)
-        const mockData = [
-            { id: "#1024", status: "Sukces", user: "Jan Kowalski", date: "Dzisiaj, 14:32" },
-            { id: "#1023", status: "W toku", user: "Anna Nowak", date: "Dzisiaj, 12:15" },
-            { id: "#1022", status: "Błąd", user: "Piotr Zieliński", date: "Wczoraj, 18:45" }
-        ];
+    function inputConst(constant) {
+        if (currentInput === "0" || shouldResetScreen) {
+            currentInput = constant;
+            shouldResetScreen = false;
+        } else {
+            currentInput += constant;
+        }
+        updateDisplay();
+    }
 
-        const tableBody = document.getElementById('tableBody');
-        tableBody.innerHTML = mockData.map(row => `
-            <tr>
-                <td>style="font-weight:600;"${row.id}</td>
-                <td><span style="color: ${row.status === 'Sukces' ? '#10b981' : row.status === 'W toku' ? '#f59e0b' : '#ef4444'}">${row.status}</span></td>
-                <td>${row.user}</td>
-                <td style="color: var(--text-muted);">${row.date}</td>
-            </tr>
-        `).join('');
+    function clearAll() {
+        currentInput = "0";
+        internalExpression = "";
+        historyExpr.innerText = "";
+        updateDisplay();
+    }
 
-        // Interakcja przycisku głównego
-        document.getElementById('actionBtn').addEventListener('click', () => {
-            // Animacja losowych liczb w statystykach jako symulacja odświeżenia danych
-            document.getElementById('stat-views').innerText = Math.floor(Math.random() * 200000).toLocaleString();
-            document.getElementById('stat-revenue').innerText = '$' + Math.floor(Math.random() * 20000).toLocaleString();
-        });
-    </script>
+    function backspace() {
+        if (currentInput.length > 1) {
+            currentInput = currentInput.slice(0, -1);
+        } else {
+            currentInput = "0";
+        }
+        updateDisplay();
+    }
+
+    function changeSign() {
+        if (currentInput !== "0") {
+            if (currentInput.startsWith("-")) {
+                currentInput = currentInput.slice(1);
+            } else {
+                currentInput = "-" + currentInput;
+            }
+            updateDisplay();
+        }
+    }
+
+    function toggleDegRad() {
+        isRad = !isRad;
+        degRadToggle.innerText = isRad ? "RAD" : "DEG";
+        modeIndicator.innerText = isRad ? "RAD" : "DEG";
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute("data-theme");
+        if (currentTheme === "light") {
+            document.documentElement.removeAttribute("data-theme");
+        } else {
+            document.documentElement.setAttribute("data-theme", "light");
+        }
+    }
+
+    // Funkcje Pamięci
+    function memClear() {
+        memoryValue = 0;
+        memoryIndicator.style.visibility = "hidden";
+        memoryValDisplay.innerText = "0";
+    }
+
+    function memRecall() {
+        if (shouldResetScreen) {
+            currentInput = memoryValue.toString();
+            shouldResetScreen = false;
+        } else {
+            if (currentInput === "0") currentInput = memoryValue.toString();
+            else currentInput += memoryValue.toString();
+        }
+        updateDisplay();
+    }
+
+    function memAdd() {
+        calculate(false);
+        memoryValue += parseFloat(currentInput) || 0;
+        memoryIndicator.style.visibility = "visible";
+        memoryValDisplay.innerText = memoryValue;
+        shouldResetScreen = true;
+    }
+
+    function memSub() {
+        calculate(false);
+        memoryValue -= parseFloat(currentInput) || 0;
+        memoryIndicator.style.visibility = "visible";
+        memoryValDisplay.innerText = memoryValue;
+        shouldResetScreen = true;
+    }
+
+    // Zaawansowane funkcje jednoargumentowe
+    function factorial() {
+        let n = parseInt(currentInput);
+        if (isNaN(n) || n < 0) {
+            currentInput = "Błąd";
+            updateDisplay();
+            return;
+        }
+        if (n === 0 || n === 1) currentInput = "1";
+        else {
+            let f = 1;
+            for (let i = 1; i <= n; i++) f *= i;
+            currentInput = f.toString();
+        }
+        updateDisplay();
+        shouldResetScreen = true;
+    }
+
+    function percentage() {
+        let val = parseFloat(currentInput);
+        if (!isNaN(val)) {
+            currentInput = (val / 100).toString();
+            updateDisplay();
+        }
+    }
+
+    function modulus() {
+        inputOp('%');
+    }
+
+    // Parser i Kompilator wyrażeń matematycznych
+    function parseTokens(str) {
+        // Podmiana stałych i funkcji dla JS Math
+        let prepared = str
+            .replace(/π/g, 'Math.PI')
+            .replace(/e/g, 'Math.E')
+            .replace(/sin\(/g, isRad ? 'Math.sin(' : 'Math.sin((Math.PI/180)*')
+            .replace(/cos\(/g, isRad ? 'Math.cos(' : 'Math.cos((Math.PI/180)*')
+            .replace(/tan\(/g, isRad ? 'Math.tan(' : 'Math.tan((Math.PI/180)*')
+            .replace(/asin\(/g, isRad ? 'Math.asin(' : '(180/Math.PI)*Math.asin(')
+            .replace(/acos\(/g, isRad ? 'Math.acos(' : '(180/Math.PI)*Math.acos(')
+            .replace(/atan\(/g, isRad ? 'Math.atan(' : '(180/Math.PI)*Math.atan(')
+            .replace(/log\(/g, 'Math.log10(')
+            .replace(/ln\(/g, 'Math.log(')
+            .replace(/sqrt\(/g, 'Math.sqrt(');
+
+        // Obsługa potęgowania za pomocą regex (wymiana x^y na Math.pow(x,y))
+        // Bardzo prosty parser potęg dla formatu matematycznego
+        while (prepared.includes('^')) {
+            prepared = prepared.replace(/([0-9.]+|Math\.PI|Math\.E)\^([0-9.]+|Math\.PI|Math\.E)/g, 'Math.pow($1,$2)');
+            // Jeśli potęga zawiera nawiasy, uproszczona obsługa pętli bezpieczeństwa
+            if (prepared.includes('^')) {
+                // Zaawansowana zamiana struktur złożonych
+                prepared = prepared.replace(/([^+\-*/()]+)\^([^+\-*/()]+)/g, 'Math.pow($1,$2)');
+                break; 
+            }
+        }
+        return prepared;
+    }
+
+    function calculate(updateHistoryView = true) {
+        let rawExpression = currentInput;
+        if (!rawExpression) return;
+
+        try {
+            // Auto-zamykanie nawiasów dla wygody użytkownika
+            let openBrackets = (rawExpression.match(/\(/g) || []).length;
+            let closeBrackets = (rawExpression.match(/\)/g) || []).length;
+            while (openBrackets > closeBrackets) {
+                rawExpression += ')';
+                openBrackets--;
+            }
+
+            let parsedExpr = parseTokens(rawExpression);
+            
+            // Bezpieczne i zaawansowane wyliczanie
+            let result = new Function(`return (${parsedExpr})`)();
+
+            if (result === undefined || isNaN(result)) throw new Error();
+            
+            // Zaokrąglenie dla czystości zmiennoprzecinkowej (unikamy np. 0.1+0.2=0.300000004)
+            if (Object.prototype.toString.call(result) === '[object Number]' && !Number.isInteger(result)) {
+                result = Math.round(result * 1e12) / 1e12;
+            }
+
+            if (updateHistoryView) {
+                historyExpr.innerText = rawExpression + " =";
+                addToSidebarLog(rawExpression, result);
+            }
+            
+            currentInput = result.toString();
+            shouldResetScreen = true;
+        } catch (error) {
+            currentInput = "Błąd";
+            shouldResetScreen = true;
+        }
+        updateDisplay();
+    }
+
+    function addToSidebarLog(expr, res) {
+        if (historyLog.innerText.includes("Brak wpisów")) {
+            historyLog.innerHTML = "";
+        }
+        const li = document.createElement("li");
+        li.className = "history-item";
+        li.innerText = `${expr} = ${res}`;
+        li.onclick = function() {
+            currentInput = res.toString();
+            historyExpr.innerText = expr + " =";
+            updateDisplay();
+        };
+        historyLog.insertBefore(li, historyLog.firstChild);
+
+        // Limit do ostatnich 10 operacji w panelu bocznym
+        if (historyLog.children.length > 10) {
+            historyLog.removeChild(historyLog.lastChild);
+        }
+    }
+
+    // Obsługa fizycznej klawiatury komputera
+    document.addEventListener('keydown', (event) => {
+        const key = event.key;
+        if (/[0-9.]/.test(key)) {
+            inputNum(key);
+        } else if (['+', '-', '*', '/'].includes(key)) {
+            inputOp(key);
+        } else if (key === '^') {
+            inputOp('^');
+        } else if (key === 'Enter' || key === '=') {
+            event.preventDefault();
+            calculate();
+        } else if (key === 'Backspace') {
+            backspace();
+        } else if (key === 'Escape') {
+            clearAll();
+        }
+    });
+</script>
+
 </body>
 </html>
