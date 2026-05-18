@@ -2,276 +2,283 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Fractal Engine - Ultimate Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zaawansowany Panel Dashboard</title>
     <style>
-        * { margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; touch-action: none; user-select: none; }
-        body, html { width: 100%; height: 100%; background: #020205; font-family: 'Courier New', monospace; color: #00ffcc; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        
-        #ui {
-            position: absolute; top: 15px; left: 15px; z-index: 10;
-            background: rgba(0, 0, 0, 0.7); padding: 15px; border: 1px solid #00ffcc;
-            border-radius: 4px; pointer-events: none; font-size: 11px;
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --transition: all 0.3s ease;
         }
-        h1 { font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        /* Strefy dotykowe dla telefonów */
-        .touch-zone { position: absolute; top: 0; width: 50%; height: 100%; z-index: 5; }
-        #left-zone { left: 0; }
-        #right-zone { right: 0; }
 
-        /* Wizualny wskaźnik joysticka */
-        #joystick-dot {
-            position: absolute; width: 40px; height: 40px; background: rgba(0, 255, 204, 0.3);
-            border: 2px solid #00ffcc; border-radius: 50%; display: none; pointer-events: none; z-index: 6;
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
         }
-        
-        #intro {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #050508; z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        button {
-            background: transparent; border: 2px solid #00ffcc; color: #00ffcc;
-            padding: 15px 40px; font-size: 18px; font-family: inherit; cursor: pointer;
-            margin-top: 25px; text-transform: uppercase; transition: all 0.2s;
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            transition: var(--transition);
+            min-height: 100vh;
+            display: flex;
         }
-        button:hover { background: #00ffcc; color: #000; box-shadow: 0 0 15px #00ffcc; }
+
+        /* Sidebar */
+        aside {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            color: var(--accent);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            display: block;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        nav a:hover, nav a.active {
+            background: var(--bg-primary);
+            color: var(--accent);
+        }
+
+        /* Main Content */
+        main {
+            flex-grow: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-toggle {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        /* Grid System */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 100fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* Data Table */
+        .table-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: rgba(0,0,0,0.02);
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            aside { width: 100%; padding: 1rem; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="intro">
-        <h1>Kwantowy Silnik Fraktali</h1>
-        <p style="color: #66ccff; margin-top: 5px;">PC: WSAD + Myszka | Telefon: Lewa strona ruch, Prawa obrót</p>
-        <button id="startBtn">Uruchom</button>
-    </div>
+    <aside>
+        <div class="logo">CORE.OS</div>
+        <nav>
+            <ul>
+                <li><a href="#" class="active">Dashboard</a></li>
+                <li><a href="#">Analityka</a></li>
+                <li><a href="#">Użytkownicy</a></li>
+                <li><a href="#">Ustawienia</a></li>
+            </ul>
+        </nav>
+    </aside>
 
-    <div id="ui">
-        <h1>Fractal Engine v3.5</h1>
-        <p id="fps">FPS: --</p>
-    </div>
-    
-    <div id="joystick-dot"></div>
-    <div id="left-zone" class="touch-zone"></div>
-    <div id="right-zone" class="touch-zone"></div>
-    <canvas id="glCanvas"></canvas>
+    <main>
+        <header>
+            <div>
+                <h1>Witaj ponownie</h1>
+                <p style="color: var(--text-muted);">Oto podsumowanie operacji z dzisiejszego dnia.</p>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-toggle" id="themeToggle">Zmień motyw</button>
+                <button class="btn" id="actionBtn">Generuj raport</button>
+            </div>
+        </header>
+
+        <section class="grid">
+            <div class="card">
+                <h3>Wyświetlenia</h3>
+                <div class="value" id="stat-views">142,384</div>
+            </div>
+            <div class="card">
+                <h3>Konwersja</h3>
+                <div class="value" id="stat-conversion">2.48%</div>
+            </div>
+            <div class="card">
+                <h3>Przychód</h3>
+                <div class="value" id="stat-revenue">$12,492</div>
+            </div>
+        </section>
+
+        <section class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Użytkownik</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    </tbody>
+            </table>
+        </section>
+    </main>
 
     <script>
-        const canvas = document.getElementById('glCanvas');
-        const startBtn = document.getElementById('startBtn');
-        const intro = document.getElementById('intro');
-        const fpsCounter = document.getElementById('fps');
-        const joyDot = document.getElementById('joystick-dot');
-
-        let gl, program;
-        let lastTime = 0, fpsTime = 0, frameCount = 0;
+        // Zarządzanie motywem (Light/Dark)
+        const themeToggle = document.getElementById('themeToggle');
+        const currentTheme = localStorage.getItem('theme') || 'dark';
         
-        // Stan kamery
-        let camPos = [0.0, 0.0, -3.0];
-        let camRotation = [0.0, 0.0]; 
-        let keys = {};
+        document.documentElement.setAttribute('data-theme', currentTheme);
 
-        // Sterowanie mobilne
-        let touchStartPos = null;
-        let touchRightLast = null;
-        let moveVec = { x: 0, y: 0 };
-
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        // --- OBSŁUGA PC (Klawiatura + Pointer Lock) ---
-        canvas.addEventListener('click', () => {
-            if(window.innerWidth > 768) canvas.requestPointerLock();
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement === canvas) {
-                camRotation[1] -= e.movementX * 0.002;
-                camRotation[0] = Math.max(-Math.PI/2, Math.min(Math.PI/2, camRotation[0] - e.movementY * 0.002));
-            }
-        });
-        document.addEventListener('keydown', (e) => keys[e.code] = true);
-        document.addEventListener('keyup', (e) => keys[e.code] = false);
-
-        // --- OBSŁUGA SMARTFONA (Touch Events) ---
-        window.addEventListener('touchstart', (e) => {
-            for (let t of e.changedTouches) {
-                if (t.clientX < window.innerWidth / 2) {
-                    touchStartPos = { x: t.clientX, y: t.clientY };
-                    joyDot.style.display = 'block';
-                    joyDot.style.left = `${t.clientX - 20}px`;
-                    joyDot.style.top = `${t.clientY - 20}px`;
-                } else {
-                    touchRightLast = { x: t.clientX, y: t.clientY };
-                }
-            }
-        });
-        
-        window.addEventListener('touchmove', (e) => {
-            for (let t of e.changedTouches) {
-                if (t.clientX < window.innerWidth / 2 && touchStartPos) {
-                    let dx = t.clientX - touchStartPos.x;
-                    let dy = t.clientY - touchStartPos.y;
-                    let dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-                    let angle = Math.atan2(dy, dx);
-                    
-                    moveVec.x = Math.cos(angle) * (dist / 50);
-                    moveVec.y = Math.sin(angle) * (dist / 50);
-                    
-                    joyDot.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
-                } else if (t.clientX >= window.innerWidth / 2 && touchRightLast) {
-                    camRotation[1] -= (t.clientX - touchRightLast.x) * 0.005;
-                    camRotation[0] = Math.max(-Math.PI/2, Math.min(Math.PI/2, camRotation[0] + (t.clientY - touchRightLast.y) * 0.005));
-                    touchRightLast = { x: t.clientX, y: t.clientY };
-                }
-            }
+        themeToggle.addEventListener('click', () => {
+            const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
         });
 
-        window.addEventListener('touchend', (e) => {
-            for (let t of e.changedTouches) {
-                if (t.clientX < window.innerWidth / 2) {
-                    touchStartPos = null;
-                    moveVec = { x: 0, y: 0 };
-                    joyDot.style.display = 'none';
-                    joyDot.style.transform = 'none';
-                } else {
-                    touchRightLast = null;
-                }
-            }
-        });
+        // Dynamiczne generowanie danych (Mock API response)
+        const mockData = [
+            { id: "#1024", status: "Sukces", user: "Jan Kowalski", date: "Dzisiaj, 14:32" },
+            { id: "#1023", status: "W toku", user: "Anna Nowak", date: "Dzisiaj, 12:15" },
+            { id: "#1022", status: "Błąd", user: "Piotr Zieliński", date: "Wczoraj, 18:45" }
+        ];
 
-        // --- SHADERY WEBGL2 ---
-        const vsSource = `#version 300 es
-            in vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = mockData.map(row => `
+            <tr>
+                <td>style="font-weight:600;"${row.id}</td>
+                <td><span style="color: ${row.status === 'Sukces' ? '#10b981' : row.status === 'W toku' ? '#f59e0b' : '#ef4444'}">${row.status}</span></td>
+                <td>${row.user}</td>
+                <td style="color: var(--text-muted);">${row.date}</td>
+            </tr>
+        `).join('');
 
-        const fsSource = `#version 300 es
-            precision highp float;
-            out vec4 fragColor;
-            uniform vec2 u_resolution;
-            uniform float u_time;
-            uniform vec3 u_camPos;
-            uniform vec2 u_camRot;
-
-            mat2 rot(float a) { return mat2(cos(a), -sin(a), sin(a), cos(a)); }
-
-            float map(vec3 p) {
-                p.xz *= rot(u_time * 0.1);
-                float d = length(p) - 1.0; // Kula bazowa
-                // Generowanie struktur fraktalnych (zbalansowane pod mobile)
-                for(int i=0; i<3; i++) {
-                    p = abs(p) - 0.4;
-                    p.xy *= rot(0.5);
-                    p.zy *= rot(0.3);
-                    d = min(d, (length(p.xz) - 0.05));
-                }
-                return d;
-            }
-
-            void main() {
-                vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
-                vec3 ro = u_camPos;
-                vec3 rd = normalize(vec3(uv, 1.2));
-                
-                rd.yz *= rot(u_camRot.x);
-                rd.xz *= rot(u_camRot.y);
-
-                float dO = 0.0;
-                int steps = 0;
-                for(int i = 0; i < 60; i++) {
-                    vec3 p = ro + rd * dO;
-                    float dS = map(p);
-                    dO += dS;
-                    steps = i;
-                    if(dO >= 12.0 || abs(dS) < 0.002) break;
-                }
-
-                vec3 color = vec3(0.0);
-                if(dO < 12.0) {
-                    float edgeGlow = float(steps) / 60.0;
-                    color = vec3(0.0, 0.7, 1.0) * edgeGlow * 2.0;
-                    color += vec3(0.5, 0.0, 0.5) * (1.0 - edgeGlow);
-                }
-                
-                // Mgła do ciemności
-                color = mix(color, vec3(0.01, 0.01, 0.03), 1.0 - exp(-0.1 * dO * dO));
-                fragColor = vec4(color, 1.0);
-            }
-        `;
-
-        function initGL() {
-            gl = canvas.getContext('webgl2');
-            if (!gl) return;
-
-            const vs = gl.createShader(gl.VERTEX_SHADER);
-            gl.shaderSource(vs, vsSource); gl.compileShader(vs);
-
-            const fs = gl.createShader(gl.FRAGMENT_SHADER);
-            gl.shaderSource(fs, fsSource); gl.compileShader(fs);
-
-            program = gl.createProgram();
-            gl.attachShader(program, vs); gl.attachShader(program, fs);
-            gl.linkProgram(program); gl.useProgram(program);
-
-            const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
-            const buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-            const posAttr = gl.getAttribLocation(program, 'position');
-            gl.enableVertexAttribArray(posAttr);
-            gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
-        }
-
-        function render(time) {
-            let currentTime = time * 0.001;
-            let deltaTime = currentTime - lastTime;
-            lastTime = currentTime;
-
-            frameCount++;
-            fpsTime += deltaTime;
-            if (fpsTime >= 1.0) {
-                fpsCounter.innerText = `FPS: ${frameCount}`;
-                frameCount = 0; fpsTime = 0;
-            }
-
-            // --- AKTUALIZACJA RUCHU (PC + MOBILE) ---
-            let speed = 2.0 * deltaTime;
-            let forward = [Math.sin(camRotation[1]), 0, Math.cos(camRotation[1])];
-            let right = [Math.cos(camRotation[1]), 0, -Math.sin(camRotation[1])];
-
-            // Ruch z klawiatury PC
-            if (keys['KeyW']) { camPos[0] += forward[0] * speed; camPos[2] += forward[2] * speed; }
-            if (keys['KeyS']) { camPos[0] -= forward[0] * speed; camPos[2] -= forward[2] * speed; }
-            if (keys['KeyA']) { camPos[0] -= right[0] * speed; camPos[2] -= right[2] * speed; }
-            if (keys['KeyD']) { camPos[0] += right[0] * speed; camPos[2] += right[2] * speed; }
-            
-            // Ruch z joysticka mobilnego
-            if (touchStartPos) {
-                camPos[0] -= (forward[0] * moveVec.y - right[0] * moveVec.x) * speed;
-                camPos[2] -= (forward[2] * moveVec.y - right[2] * moveVec.x) * speed;
-            }
-
-            // Uniforms do GPU
-            gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), canvas.width, canvas.height);
-            gl.uniform1f(gl.getUniformLocation(program, 'u_time'), currentTime);
-            gl.uniform3f(gl.getUniformLocation(program, 'u_camPos'), camPos[0], camPos[1], camPos[2]);
-            gl.uniform2f(gl.getUniformLocation(program, 'u_camRot'), camRotation[0], camRotation[1]);
-
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            requestAnimationFrame(render);
-        }
-
-        startBtn.addEventListener('click', () => {
-            intro.remove();
-            initGL();
-            requestAnimationFrame(render);
+        // Interakcja przycisku głównego
+        document.getElementById('actionBtn').addEventListener('click', () => {
+            // Animacja losowych liczb w statystykach jako symulacja odświeżenia danych
+            document.getElementById('stat-views').innerText = Math.floor(Math.random() * 200000).toLocaleString();
+            document.getElementById('stat-revenue').innerText = '$' + Math.floor(Math.random() * 20000).toLocaleString();
         });
     </script>
 </body>
